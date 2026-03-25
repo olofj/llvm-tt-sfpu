@@ -1,0 +1,35 @@
+From: LLVM XttSFPU Backend <llvm-tt-sfpu@local>
+Subject: [PATCH 1/5] RISCV: Add XttSFPU feature flags and SFPU register classes
+
+Add Tenstorrent SFPU vendor extension feature flags (XttSFPU, XttSFPU-BH,
+XttSFPU-WH) and the SFPU LReg register file (L0-L16) with five register
+classes.
+
+---
+ llvm/lib/Target/RISCV/RISCVFeatures.td    |  3 +++
+ llvm/lib/Target/RISCV/RISCVRegisterInfo.td |  3 +++
+ llvm/lib/Target/RISCV/RISCVSubtarget.h     |  6 ++++++
+ 3 files changed, 12 insertions(+)
+
+--- a/llvm/lib/Target/RISCV/RISCVFeatures.td
++++ b/llvm/lib/Target/RISCV/RISCVFeatures.td
+@@ -end of vendor extensions section
++// Tenstorrent SFPU Vector Unit
++include "RISCVFeaturesXttSFPU.td"
+
+--- a/llvm/lib/Target/RISCV/RISCVRegisterInfo.td
++++ b/llvm/lib/Target/RISCV/RISCVRegisterInfo.td
+@@ -end of file
++// Tenstorrent SFPU LReg register file
++include "RISCVRegisterInfoXttSFPU.td"
+
+--- a/llvm/lib/Target/RISCV/RISCVSubtarget.h
++++ b/llvm/lib/Target/RISCV/RISCVSubtarget.h
+@@ -in the feature bool section
++  bool HasXttSFPU = false;
++  bool HasXttSFPUBH = false;
++  bool HasXttSFPUWH = false;
+@@ -in the hasFeature section
++  bool hasXttSFPU() const { return HasXttSFPU; }
++  bool hasXttSFPUBH() const { return HasXttSFPUBH; }
++  bool hasXttSFPUWH() const { return HasXttSFPUWH; }

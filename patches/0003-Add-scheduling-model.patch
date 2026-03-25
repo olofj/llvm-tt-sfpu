@@ -1,0 +1,16 @@
+From: LLVM XttSFPU Backend <llvm-tt-sfpu@local>
+Subject: [PATCH 3/5] RISCV: Add SFPU scheduling models (TensixBH/TensixWH)
+
+Add per-processor scheduling models with 5 sub-unit resources (Load, Simple,
+MAD, Round, Store) and per-instruction latencies. Addresses GH-Q-006 (the #1
+codegen quality issue in sfpi-gcc: missing pipeline model).
+
+---
+ llvm/lib/Target/RISCV/RISCVSchedule.td |  3 +++
+ 1 file changed, 3 insertions(+)
+
+--- a/llvm/lib/Target/RISCV/RISCVSchedule.td
++++ b/llvm/lib/Target/RISCV/RISCVSchedule.td
+@@ -end of file
++// Tenstorrent SFPU scheduling model
++include "RISCVSchedXttSFPU.td"

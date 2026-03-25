@@ -1,0 +1,48 @@
+From: LLVM XttSFPU Backend <llvm-tt-sfpu@local>
+Subject: [PATCH 5/5] RISCV: Add SFPU compiler passes
+
+Add 5 MachineFunctionPasses for the Tenstorrent SFPU:
+- RISCVXttSFPUErrata: Hardware errata workarounds (E-001 through E-012)
+- RISCVXttSFPULiveness: CC stack liveness for _lv variant selection
+- RISCVXttSFPUReplay: REPLAY buffer optimization
+- RISCVXttSFPUSynth: Out-of-range immediate synthesis
+- RISCVXttSFPUConstraints: WH architectural constraint verification
+
+---
+ llvm/lib/Target/RISCV/CMakeLists.txt     |  5 +++++
+ llvm/lib/Target/RISCV/RISCVTargetMachine.cpp | 15 +++++++++++++++
+ llvm/lib/Target/RISCV/RISCV.h            |  5 +++++
+ 3 files changed, 25 insertions(+)
+
+--- a/llvm/lib/Target/RISCV/CMakeLists.txt
++++ b/llvm/lib/Target/RISCV/CMakeLists.txt
+@@ -in add_llvm_target section
++  RISCVXttSFPUCombine.cpp
++  RISCVXttSFPUConstraints.cpp
++  RISCVXttSFPUErrata.cpp
++  RISCVXttSFPULiveness.cpp
++  RISCVXttSFPUReplay.cpp
++  RISCVXttSFPUSynth.cpp
+
+--- a/llvm/lib/Target/RISCV/RISCVTargetMachine.cpp
++++ b/llvm/lib/Target/RISCV/RISCVTargetMachine.cpp
+@@ -in addPreEmitPass or addPreSched2
++  // Tenstorrent SFPU passes (run after register allocation)
++  if (TM->getSubtarget<RISCVSubtarget>().hasXttSFPU()) {
++    addPass(createRISCVXttSFPUCombinePass());     // MUL+ADD→MAD, LOADI folding
++    addPass(createRISCVXttSFPULivenessPass());     // CC stack _lv selection
++    addPass(createRISCVXttSFPUErrataPass());       // E-001 through E-012
++    addPass(createRISCVXttSFPUConstraintsPass());  // C-010 WH verification
++    addPass(createRISCVXttSFPUSynthPass());        // Immediate expansion
++    addPass(createRISCVXttSFPUReplayPass());       // REPLAY optimization
++  }
+
+--- a/llvm/lib/Target/RISCV/RISCV.h
++++ b/llvm/lib/Target/RISCV/RISCV.h
+@@ -in function declarations
++FunctionPass *createRISCVXttSFPUCombinePass();
++FunctionPass *createRISCVXttSFPUConstraintsPass();
++FunctionPass *createRISCVXttSFPUErrataPass();
++FunctionPass *createRISCVXttSFPULivenessPass();
++FunctionPass *createRISCVXttSFPUReplayPass();
++FunctionPass *createRISCVXttSFPUSynthPass();

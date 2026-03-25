@@ -1,0 +1,15 @@
+From: LLVM XttSFPU Backend <llvm-tt-sfpu@local>
+Subject: [PATCH 4/5] RISCV: Add SFPU intrinsic definitions
+
+Add 45+ LLVM intrinsics for SFPU instructions (38 base + 7 _lv variants).
+Each intrinsic maps 1:1 to an SFPU hardware instruction.
+
+---
+ llvm/include/llvm/IR/IntrinsicsRISCV.td |  3 +++
+ 1 file changed, 3 insertions(+)
+
+--- a/llvm/include/llvm/IR/IntrinsicsRISCV.td
++++ b/llvm/include/llvm/IR/IntrinsicsRISCV.td
+@@ -end of file
++// Tenstorrent SFPU intrinsics
++include "IntrinsicsRISCVXttSFPU.td"

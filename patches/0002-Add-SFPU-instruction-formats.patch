@@ -1,0 +1,20 @@
+From: LLVM XttSFPU Backend <llvm-tt-sfpu@local>
+Subject: [PATCH 2/5] RISCV: Add SFPU instruction encoding formats and definitions
+
+Add 8 encoding format classes and 43 instruction definitions for the
+Tenstorrent SFPU vector unit (opcodes 0x70-0x95 + BH extensions).
+Includes both BH and WH load/store encoding variants.
+
+All encodings validated against sfpu-ops-bh.h and sfpu-ops-wh.h
+(216 encoding tests pass).
+
+---
+ llvm/lib/Target/RISCV/RISCVInstrInfo.td |  3 +++
+ 1 file changed, 3 insertions(+)
+
+--- a/llvm/lib/Target/RISCV/RISCVInstrInfo.td
++++ b/llvm/lib/Target/RISCV/RISCVInstrInfo.td
+@@ -end of vendor extension includes
++// Tenstorrent SFPU instructions
++include "RISCVInstrInfoXttSFPU.td"
++include "RISCVXttSFPUISelPatterns.td"

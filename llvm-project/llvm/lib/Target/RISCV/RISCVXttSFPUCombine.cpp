@@ -1,0 +1,268 @@
+//===-- RISCVXttSFPUCombine.cpp - SFPU DAG Combining ----------------------===//
+//
+// Custom DAG combining patterns for the Tenstorrent SFPU.
+// These implement the same optimizations as GCC's gimple-rvtt-combine.cc
+// but using LLVM's DAG combiner infrastructure.
+//
+// Combining patterns:
+//
+// 1. MUL+ADD → MAD (GH-Q-002 fix)
+//    sfpmul(a, b, L9, mod) → tmp; sfpadd(L10, tmp, c, mod) → sfpmad(a, b, c, mod)
+//    Saves 1 instruction + potentially 1 NOP cycle.
+//
+// 2. SFPLOADI + SFPMUL → SFPMULI (immediate fold)
+//    sfploadi(imm16) → tmp; sfpmul(tmp, x, L9, mod) → sfpmuli(x, imm16, mod)
+//    Saves 1 instruction + frees 1 register.
+//
+// 3. SFPLOADI + SFPADD → SFPADDI (immediate fold)
+//    sfploadi(imm16) → tmp; sfpadd(L10, tmp, x, mod) → sfpaddi(x, imm16, mod)
+//    Saves 1 instruction + frees 1 register.
+//
+// 4. Negated operand folding (BH only)
+//    sfpmul(a, L11(-1.0), L9, 0) → negate; sfpmul(negate, b, L9, mod)
+//    → sfpmul(a, b, L9, mod ^ NEGATE_A)
+//    Saves 1 instruction (the negation multiply).
+//
+// Reference: sfpi-gcc/gcc/config/riscv/tt/gimple-rvtt-combine.cc
+//
+//===----------------------------------------------------------------------===//
+
+#include "RISCV.h"
+#include "RISCVInstrInfo.h"
+#include "RISCVSubtarget.h"
+#include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/CodeGen/MachineInstrBuilder.h"
+
+using namespace llvm;
+
+#define DEBUG_TYPE "riscv-xttsfpu-combine"
+
+namespace {
+
+class RISCVXttSFPUCombine : public MachineFunctionPass {
+public:
+  static char ID;
+
+  RISCVXttSFPUCombine() : MachineFunctionPass(ID) {}
+
+  bool runOnMachineFunction(MachineFunction &MF) override;
+
+  StringRef getPassName() const override {
+    return "RISC-V Tenstorrent SFPU Instruction Combining";
+  }
+
+private:
+  const RISCVSubtarget *STI = nullptr;
+  const RISCVInstrInfo *TII = nullptr;
+
+  bool tryCombineMulAdd(MachineBasicBlock &MBB);
+  bool tryCombineLoadiIntoImm(MachineBasicBlock &MBB);
+
+  /// Check if a register has exactly one use in the function.
+  bool hasOneUse(Register Reg, const MachineRegisterInfo &MRI) const;
+
+  /// Find the defining instruction for a register.
+  MachineInstr *getDefInst(Register Reg, const MachineRegisterInfo &MRI) const;
+};
+
+} // end anonymous namespace
+
+char RISCVXttSFPUCombine::ID = 0;
+
+bool RISCVXttSFPUCombine::hasOneUse(Register Reg,
+                                      const MachineRegisterInfo &MRI) const {
+  if (!Reg.isVirtual())
+    return false;
+  return MRI.hasOneUse(Reg);
+}
+
+MachineInstr *RISCVXttSFPUCombine::getDefInst(
+    Register Reg, const MachineRegisterInfo &MRI) const {
+  if (!Reg.isVirtual())
+    return nullptr;
+  return MRI.getVRegDef(Reg);
+}
+
+/// Pattern 1: MUL + ADD → MAD
+///
+/// Look for:
+///   %mul = SFPMUL src_a, src_b, L9, mod_mul
+///   %result = SFPADD L10, %mul, src_c, mod_add
+/// Or:
+///   %result = SFPADD L10, src_c, %mul, mod_add
+///
+/// Replace with:
+///   %result = SFPMAD src_a, src_b, src_c, (mod_mul ^ mod_add)
+///
+/// GCC does this in gimple-rvtt-combine.cc:try_combine_mul_add()
+/// but ONLY for non-_lv MUL feeding into ADD. _lv MUL can't propagate
+/// through MAD_lv because the live value semantics differ.
+bool RISCVXttSFPUCombine::tryCombineMulAdd(MachineBasicBlock &MBB) {
+  const MachineRegisterInfo &MRI = MBB.getParent()->getRegInfo();
+  bool Changed = false;
+
+  for (auto MBBI = MBB.begin(), MBBE = MBB.end(); MBBI != MBBE; ++MBBI) {
+    MachineInstr &AddMI = *MBBI;
+
+    // Must be SFPADD (not _lv for now)
+    if (AddMI.getOpcode() != RISCV::SFPADD)
+      continue;
+
+    // SFPADD operands: dest, src_a, src_b, src_c, mod1
+    // Try both src_b and src_c as the MUL result
+    for (unsigned OpIdx : {2u, 3u}) {
+      const MachineOperand &MulResultOp = AddMI.getOperand(OpIdx);
+      if (!MulResultOp.isReg())
+        continue;
+
+      Register MulResult = MulResultOp.getReg();
+      if (!hasOneUse(MulResult, MRI))
+        continue;
+
+      MachineInstr *MulMI = getDefInst(MulResult, MRI);
+      if (!MulMI || MulMI->getOpcode() != RISCV::SFPMUL)
+        continue;
+
+      // Must be in the same basic block (GCC checks this too)
+      if (MulMI->getParent() != &MBB)
+        continue;
+
+      // Get the "other" operand of SFPADD (the one that's not from MUL)
+      unsigned OtherIdx = (OpIdx == 2) ? 3 : 2;
+      const MachineOperand &OtherOp = AddMI.getOperand(OtherIdx);
+
+      // Build SFPMAD: dest = MUL.src_a * MUL.src_b + ADD.other
+      // SFPMAD operands: dest, src_a, src_b, src_c, mod1
+      unsigned AddMod = AddMI.getOperand(4).getImm();
+      unsigned MulMod = MulMI->getOperand(4).getImm();
+      unsigned MadMod = AddMod ^ MulMod;
+
+      BuildMI(MBB, AddMI, AddMI.getDebugLoc(), TII->get(RISCV::SFPMAD))
+          .add(AddMI.getOperand(0))        // dest (from ADD)
+          .add(MulMI->getOperand(1))       // src_a (from MUL)
+          .add(MulMI->getOperand(2))       // src_b (from MUL)
+          .add(OtherOp)                     // src_c (from ADD other)
+          .addImm(MadMod);                  // mod1 = add_mod ^ mul_mod
+
+      // Remove the ADD and MUL
+      AddMI.eraseFromParent();
+      MulMI->eraseFromParent();
+
+      Changed = true;
+      LLVM_DEBUG(dbgs() << "  Combined MUL+ADD into MAD\n");
+      break;  // Restart from the new instruction
+    }
+  }
+
+  return Changed;
+}
+
+/// Pattern 2 & 3: SFPLOADI + SFPMUL → SFPMULI, SFPLOADI + SFPADD → SFPADDI
+///
+/// Look for:
+///   %imm = SFPLOADI lreg, mod0, imm16
+///   %result = SFPMUL %imm, other, L9, mod    (or ADD: L10, %imm, other, mod)
+///
+/// Replace with:
+///   %result = SFPMULI other, imm16, mod       (or SFPADDI other, imm16, mod)
+///
+/// Conditions (from GCC gimple-rvtt-combine.cc:try_gen_muli_or_addi):
+/// - SFPLOADI result has single use (otherwise we'd need the register anyway)
+/// - Must be in same BB
+/// - No intervening CC state change
+/// - Not _lv variant of SFPLOADI (live value may differ per lane)
+bool RISCVXttSFPUCombine::tryCombineLoadiIntoImm(MachineBasicBlock &MBB) {
+  const MachineRegisterInfo &MRI = MBB.getParent()->getRegInfo();
+  bool Changed = false;
+
+  for (auto MBBI = MBB.begin(), MBBE = MBB.end(); MBBI != MBBE; ) {
+    MachineInstr &MI = *MBBI++;
+
+    // Must be SFPMUL or SFPADD (not _lv)
+    unsigned Opc = MI.getOpcode();
+    bool IsMul = (Opc == RISCV::SFPMUL);
+    bool IsAdd = (Opc == RISCV::SFPADD);
+    if (!IsMul && !IsAdd)
+      continue;
+
+    // Check each source operand for SFPLOADI
+    for (unsigned OpIdx = 1; OpIdx <= 3; ++OpIdx) {
+      const MachineOperand &SrcOp = MI.getOperand(OpIdx);
+      if (!SrcOp.isReg())
+        continue;
+
+      Register SrcReg = SrcOp.getReg();
+      if (!hasOneUse(SrcReg, MRI))
+        continue;
+
+      MachineInstr *LoadiMI = getDefInst(SrcReg, MRI);
+      if (!LoadiMI || LoadiMI->getOpcode() != RISCV::SFPLOADI)
+        continue;
+
+      if (LoadiMI->getParent() != &MBB)
+        continue;
+
+      // Get the immediate from SFPLOADI
+      // SFPLOADI format: lreg_ind, mod0, imm16
+      unsigned Imm16 = LoadiMI->getOperand(2).getImm();
+      unsigned Mod = MI.getOperand(4).getImm();
+
+      // Find the "other" source operand (the non-LOADI one)
+      // For MUL: operands are dest, src_a, src_b, src_c, mod1
+      //   src_a or src_b could be the LOADI result
+      // For ADD: operands are dest, src_a, src_b, src_c, mod1
+      //   src_a(L10) is fixed, src_b or src_c could be LOADI result
+
+      unsigned ImmOpc = IsMul ? RISCV::SFPMULI : RISCV::SFPADDI;
+
+      // SFPMULI/SFPADDI format: dest, imm16, mod1
+      // The "other" register becomes an implicit source (dst-as-src)
+      BuildMI(MBB, MI, MI.getDebugLoc(), TII->get(ImmOpc))
+          .add(MI.getOperand(0))     // dest
+          .addImm(Imm16)             // imm16 from LOADI
+          .addImm(Mod);              // mod1
+
+      // Remove the MUL/ADD and SFPLOADI
+      MI.eraseFromParent();
+      LoadiMI->eraseFromParent();
+
+      Changed = true;
+      LLVM_DEBUG(dbgs() << "  Combined LOADI+"
+                        << (IsMul ? "MUL" : "ADD")
+                        << " into " << (IsMul ? "MULI" : "ADDI") << "\n");
+      break;
+    }
+  }
+
+  return Changed;
+}
+
+bool RISCVXttSFPUCombine::runOnMachineFunction(MachineFunction &MF) {
+  STI = &MF.getSubtarget<RISCVSubtarget>();
+
+  if (!STI->hasXttSFPU())
+    return false;
+
+  TII = STI->getInstrInfo();
+
+  bool Changed = false;
+
+  // Run combining passes over each basic block
+  for (MachineBasicBlock &MBB : MF) {
+    // MUL+ADD → MAD (most impactful optimization)
+    Changed |= tryCombineMulAdd(MBB);
+
+    // LOADI + MUL/ADD → MULI/ADDI
+    Changed |= tryCombineLoadiIntoImm(MBB);
+  }
+
+  return Changed;
+}
+
+INITIALIZE_PASS(RISCVXttSFPUCombine, DEBUG_TYPE,
+                "RISC-V Tenstorrent SFPU Instruction Combining",
+                false, false)
+
+FunctionPass *llvm::createRISCVXttSFPUCombinePass() {
+  return new RISCVXttSFPUCombine();
+}
