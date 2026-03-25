@@ -1,0 +1,270 @@
+{
+  "description": "SFPU instruction test vectors for ttsim validation",
+  "source": "Generated from GCC sfpu-ops-bh.h encoding formulas",
+  "total_vectors": 22,
+  "vectors": [
+    {
+      "name": "softmax_load",
+      "word": "0x70000003",
+      "word_int": 1879048195,
+      "category": "softmax",
+      "description": "Load Dst[0] to L0",
+      "operands": {
+        "lreg": 0,
+        "mod0": 0,
+        "addr_mode": 0,
+        "addr": 0
+      },
+      "opcode": "0x70"
+    },
+    {
+      "name": "softmax_exexp",
+      "word": "0x77000013",
+      "word_int": 1996488723,
+      "category": "softmax",
+      "description": "Extract exponent of L0 to L1 (DEBIAS mode)",
+      "operands": {
+        "imm12": 0,
+        "lreg_c": 0,
+        "lreg_dest": 1,
+        "mod1": 0
+      },
+      "opcode": "0x77"
+    },
+    {
+      "name": "softmax_divp2",
+      "word": "0x76000103",
+      "word_int": 1979711747,
+      "category": "softmax",
+      "description": "Divide L0 by 2^L1 (subtract exponent)",
+      "operands": {
+        "imm12": 0,
+        "lreg_c": 1,
+        "lreg_dest": 0,
+        "mod1": 0
+      },
+      "opcode": "0x76"
+    },
+    {
+      "name": "softmax_mad1",
+      "word": "0x84008923",
+      "word_int": 2214627619,
+      "category": "softmax",
+      "description": "L2 = L0 * L8(0.8373) + L9(0.0) [Horner step 1]",
+      "operands": {
+        "src_a": 0,
+        "src_b": 8,
+        "src_c": 9,
+        "dest": 2,
+        "mod1": 0
+      },
+      "opcode": "0x84"
+    },
+    {
+      "name": "softmax_mad2",
+      "word": "0x84002a03",
+      "word_int": 2214603267,
+      "category": "softmax",
+      "description": "L0 = L0 * L2 + L10(1.0) [Horner step 2]",
+      "operands": {
+        "src_a": 0,
+        "src_b": 2,
+        "src_c": 10,
+        "dest": 0,
+        "mod1": 0
+      },
+      "opcode": "0x84"
+    },
+    {
+      "name": "softmax_store",
+      "word": "0x72000003",
+      "word_int": 1912602627,
+      "category": "softmax",
+      "description": "Store L0 to Dst[0]",
+      "operands": {
+        "lreg": 0,
+        "mod0": 0,
+        "addr_mode": 0,
+        "addr": 0
+      },
+      "opcode": "0x72"
+    },
+    {
+      "name": "nop",
+      "word": "0x8f000003",
+      "word_int": 2399141891,
+      "category": "control",
+      "description": "Pipeline NOP",
+      "operands": {},
+      "opcode": "0x8f"
+    },
+    {
+      "name": "pushc",
+      "word": "0x87000003",
+      "word_int": 2264924163,
+      "category": "predication",
+      "description": "Push CC stack (v_if begin)",
+      "operands": {},
+      "opcode": "0x87"
+    },
+    {
+      "name": "setcc_lt0",
+      "word": "0x7b000003",
+      "word_int": 2063597571,
+      "category": "predication",
+      "description": "Set CC: L0 < 0 (LREG_LT0 mode)",
+      "operands": {
+        "mod1": 0
+      },
+      "opcode": "0x7b"
+    },
+    {
+      "name": "compc",
+      "word": "0x8b000003",
+      "word_int": 2332033027,
+      "category": "predication",
+      "description": "Complement CC (v_else)",
+      "operands": {},
+      "opcode": "0x8b"
+    },
+    {
+      "name": "popc",
+      "word": "0x88000003",
+      "word_int": 2281701379,
+      "category": "predication",
+      "description": "Pop CC stack (v_endif)",
+      "operands": {},
+      "opcode": "0x88"
+    },
+    {
+      "name": "loadi_coeff0",
+      "word": "0x71001dff",
+      "word_int": 1895833087,
+      "category": "tanh",
+      "description": "Load tanh coeff0 (0x1DFF = 0.90625*x) to L0",
+      "operands": {
+        "lreg": 0,
+        "mod0": 0,
+        "imm16": 7679
+      },
+      "opcode": "0x71"
+    },
+    {
+      "name": "loadi_coeff1",
+      "word": "0x7110481b",
+      "word_int": 1896892443,
+      "category": "tanh",
+      "description": "Load tanh coeff1 (0x481A = 0.09375*x + 0.8125) to L1",
+      "operands": {
+        "lreg": 1,
+        "mod0": 0,
+        "imm16": 18458
+      },
+      "opcode": "0x71"
+    },
+    {
+      "name": "loadi_coeff2",
+      "word": "0x7120ff03",
+      "word_int": 1897987843,
+      "category": "tanh",
+      "description": "Load tanh coeff2 (0xFF00 = 1.0) to L2",
+      "operands": {
+        "lreg": 2,
+        "mod0": 0,
+        "imm16": 65280
+      },
+      "opcode": "0x71"
+    },
+    {
+      "name": "lut_tanh",
+      "word": "0x73300003",
+      "word_int": 1932525571,
+      "category": "tanh",
+      "description": "LUT lookup: L3 = tanh_lut(Dst[0], L0, L1, L2)",
+      "operands": {},
+      "opcode": "0x73"
+    },
+    {
+      "name": "sfpgt",
+      "word": "0x9a000103",
+      "word_int": 2583691523,
+      "category": "comparison_bh",
+      "description": "SFPGT: set CC if L0 > L1",
+      "operands": {
+        "lreg_c": 1,
+        "lreg_dest": 0,
+        "mod1": 0
+      },
+      "opcode": "0x9a"
+    },
+    {
+      "name": "sfpmul24",
+      "word": "0x96012903",
+      "word_int": 2516658435,
+      "category": "integer_bh",
+      "description": "SFPMUL24: L0 = L1 * L2 (23-bit integer, src_c=L9=zero)",
+      "operands": {},
+      "opcode": "0x96"
+    },
+    {
+      "name": "cast_fp16a_to_fp32",
+      "word": "0x90000103",
+      "word_int": 2415919363,
+      "category": "cast",
+      "description": "Cast L1 FP16A \u2192 FP32, store in L0",
+      "operands": {
+        "mod1": 2
+      },
+      "opcode": "0x90"
+    },
+    {
+      "name": "stochrnd_fp32_to_fp16b",
+      "word": "0x8e200033",
+      "word_int": 2384461875,
+      "category": "rounding",
+      "description": "Stochastic round L3 FP32 \u2192 FP16B",
+      "operands": {
+        "rnd_mode": 1,
+        "imm5": 0,
+        "src_b": 0,
+        "src_c": 0,
+        "dest": 3
+      },
+      "opcode": "0x8e"
+    },
+    {
+      "name": "swap_min",
+      "word": "0x92000103",
+      "word_int": 2449473795,
+      "category": "swap",
+      "description": "SFPSWAP min: L0 = min(L0, L1), L1 = max",
+      "operands": {
+        "mod1": 1
+      },
+      "opcode": "0x92"
+    },
+    {
+      "name": "swap_max",
+      "word": "0x9200010b",
+      "word_int": 2449473803,
+      "category": "swap",
+      "description": "SFPSWAP max: L0 = max(L0, L1), L1 = min (C-025)",
+      "operands": {
+        "mod1": 9
+      },
+      "opcode": "0x92"
+    },
+    {
+      "name": "config_l11",
+      "word": "0x913f80b3",
+      "word_int": 2436858035,
+      "category": "config",
+      "description": "SFPCONFIG: write 0x3F80 to L11 (VD=11)",
+      "operands": {
+        "imm16": 16256,
+        "config_dest": 11
+      },
+      "opcode": "0x91"
+    }
+  ]
+}
