@@ -278,4 +278,47 @@ def int_riscv_tt_sfple
                 [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
                 [IntrNoMem, IntrHasSideEffects]>;
 
+//--- Live-Value (_lv) Intrinsics ---
+// Used inside predicated regions (v_if/v_else/v_endif) when the destination
+// register is live across the predication boundary. The extra operand is the
+// prior value of the destination, which is preserved in disabled lanes.
+
+def int_riscv_tt_sfpmov_lv
+    : Intrinsic<[llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                // live_val, lreg_c, imm12, mod1
+                [IntrNoMem, IntrHasSideEffects]>;
+
+def int_riscv_tt_sfpmad_lv
+    : Intrinsic<[llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                // live_val, src_a, src_b, src_c, mod1
+                [IntrNoMem, IntrHasSideEffects]>;
+
+def int_riscv_tt_sfpmul_lv
+    : Intrinsic<[llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrHasSideEffects]>;
+
+def int_riscv_tt_sfpadd_lv
+    : Intrinsic<[llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrHasSideEffects]>;
+
+def int_riscv_tt_sfpload_lv
+    : Intrinsic<[llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                // live_val, mod0, addr_mode, addr
+                [IntrReadMem, IntrHasSideEffects]>;
+
+def int_riscv_tt_sfpcast_lv
+    : Intrinsic<[llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrHasSideEffects]>;
+
+def int_riscv_tt_sfparecip_lv
+    : Intrinsic<[llvm_i32_ty],
+                [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty, llvm_i32_ty],
+                [IntrNoMem, IntrHasSideEffects]>;
+
 } // TargetPrefix = "riscv"

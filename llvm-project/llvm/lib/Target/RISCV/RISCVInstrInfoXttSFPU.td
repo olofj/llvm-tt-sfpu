@@ -644,3 +644,122 @@ let isBarrier = 0 in
 def : InstAlias<"sfpnop", (SFPNOP)>;
 
 } // Predicates = [HasXttSFPU]
+
+//===----------------------------------------------------------------------===//
+// Live-Value (_lv) Instruction Variants (Phase 5: CC Stack Predication)
+//
+// When a register is "live" across a predicated region (v_if/v_else/v_endif),
+// the _lv variant must be used. It takes an extra operand: the previous value
+// of the destination register. The hardware uses this to preserve per-lane
+// values in lanes disabled by the condition code predicate.
+//
+// In GCC, _lv variants have flag 0x02 (bit 1) and an extra XTT_VEC operand
+// prepended before the normal operands. The _lv variant emits the same opcode
+// — the register allocator constrains dest to match the live-value operand.
+//
+// Validated against: sfpi-gcc/gcc/config/riscv/tt/rvtt-insn.def
+//   Each instruction with _lv has: flags |= 0x02, extra XTT_VEC arg at front
+//===----------------------------------------------------------------------===//
+
+let Predicates = [HasXttSFPU] in {
+
+// _lv Unary: dest must be tied to live_val (same register)
+class SFPUUnaryRegLV<bits<8> opcode, string opcodestr>
+    : SFPUUnary<opcode, opcodestr,
+                (outs SFPURegs:$lreg_dest),
+                (ins SFPURegs:$live_val, uimm12_sfpu:$imm12,
+                     SFPUAllRegs:$lreg_c, uimm4_sfpu:$mod1),
+                "$lreg_dest, $live_val, $lreg_c, $imm12, $mod1"> {
+  let Constraints = "$lreg_dest = $live_val";
+}
+
+// _lv 3-Op: dest must be tied to live_val
+class SFPU3OpLV<bits<8> opcode, string opcodestr>
+    : RVInstTensix<opcode,
+                   (outs SFPURegs:$lreg_dest),
+                   (ins SFPURegs:$live_val, SFPUAllRegs:$lreg_src_a,
+                        SFPUAllRegs:$lreg_src_b, SFPUAllRegs:$lreg_src_c,
+                        uimm4_sfpu:$mod1),
+                   opcodestr,
+                   "$lreg_dest, $live_val, $lreg_src_a, $lreg_src_b, $lreg_src_c, $mod1",
+                   []> {
+  bits<4> lreg_src_a;
+  bits<4> lreg_src_b;
+  bits<4> lreg_src_c;
+  bits<4> lreg_dest;
+  bits<4> mod1;
+
+  let Inst{23-20} = 0b0000;
+  let Inst{19-16} = lreg_src_a;
+  let Inst{15-12} = lreg_src_b;
+  let Inst{11-8}  = lreg_src_c;
+  let Inst{7-4}   = lreg_dest;
+  let Inst{3-0}   = mod1;
+
+  let Constraints = "$lreg_dest = $live_val";
+}
+
+// --- Standard Unary _lv variants ---
+
+def SFPMOV_LV    : SFPUUnaryRegLV<0x7C, "sfpmov">,
+                   Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
+def SFPABS_LV    : SFPUUnaryRegLV<0x7D, "sfpabs">,
+                   Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
+def SFPEXEXP_LV  : SFPUUnaryRegLV<0x77, "sfpexexp">,
+                   Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
+def SFPEXMAN_LV  : SFPUUnaryRegLV<0x78, "sfpexman">,
+                   Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
+def SFPNOT_LV    : SFPUUnaryRegLV<0x80, "sfpnot">,
+                   Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
+def SFPLZ_LV     : SFPUUnaryRegLV<0x81, "sfplz">,
+                   Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
+def SFPDIVP2_LV  : SFPUUnaryRegLV<0x76, "sfpdivp2">,
+                   Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
+def SFPSETEXP_LV : SFPUUnaryRegLV<0x82, "sfpsetexp">,
+                   Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
+def SFPSETMAN_LV : SFPUUnaryRegLV<0x83, "sfpsetman">,
+                   Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
+def SFPSETSGN_LV : SFPUUnaryRegLV<0x89, "sfpsetsgn">,
+                   Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
+def SFPCAST_LV   : SFPUUnaryRegLV<0x90, "sfpcast">,
+                   Sched<[WriteSFPURound, ReadSFPUSrc]>;
+def SFPSHFT2_LV  : SFPUUnaryRegLV<0x94, "sfpshft2">,
+                   Sched<[WriteSFPUShft2, ReadSFPUSrc]>;
+
+// --- 3-Operand _lv variants ---
+
+def SFPMAD_LV : SFPU3OpLV<0x84, "sfpmad">,
+                Sched<[WriteSFPUMAD, ReadSFPUSrc, ReadSFPUSrc, ReadSFPUSrc]>;
+def SFPADD_LV : SFPU3OpLV<0x85, "sfpadd">,
+                Sched<[WriteSFPUMAD, ReadSFPUSrc, ReadSFPUSrc, ReadSFPUSrc]>;
+def SFPMUL_LV : SFPU3OpLV<0x86, "sfpmul">,
+                Sched<[WriteSFPUMAD, ReadSFPUSrc, ReadSFPUSrc, ReadSFPUSrc]>;
+
+// --- Load _lv variant ---
+
+def SFPLOAD_BH_LV : SFPULoadBH<0x70, "sfpload",
+    (outs SFPURegs:$lreg_ind),
+    (ins SFPURegs:$live_val, uimm4_sfpu:$mod0,
+         uimm3_sfpu:$addr_mode, uimm13_sfpu:$addr),
+    "$lreg_ind, $live_val, $mod0, $addr_mode, $addr"> {
+  let mayLoad = 1;
+  let Sched = [WriteSFPULoad, ReadSFPUSrc];
+  let Constraints = "$lreg_ind = $live_val";
+}
+
+} // Predicates = [HasXttSFPU]
+
+// --- BH-only _lv variants ---
+
+let Predicates = [HasXttSFPU, HasXttSFPUBH] in {
+
+def SFPMUL24_LV : SFPU3OpLV<0x96, "sfpmul24">,
+                  Sched<[WriteSFPUMAD, ReadSFPUSrc, ReadSFPUSrc, ReadSFPUSrc]>;
+
+def SFPARECIP_LV : SFPUUnaryRegLV<0x99, "sfparecip">,
+                   Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
+
+def SFPMOV_CONFIG_LV : SFPUUnaryRegLV<0x9C, "sfpmov_config">,
+                       Sched<[WriteSFPUSimple]>;
+
+} // Predicates = [HasXttSFPU, HasXttSFPUBH]
