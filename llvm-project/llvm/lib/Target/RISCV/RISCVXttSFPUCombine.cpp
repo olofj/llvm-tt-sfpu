@@ -57,6 +57,7 @@ private:
 
   bool tryCombineMulAdd(MachineBasicBlock &MBB);
   bool tryCombineLoadiIntoImm(MachineBasicBlock &MBB);
+  bool tryCombineNegatedOperands(MachineBasicBlock &MBB);
 
   /// Check if a register has exactly one use in the function.
   bool hasOneUse(Register Reg, const MachineRegisterInfo &MRI) const;
@@ -237,6 +238,107 @@ bool RISCVXttSFPUCombine::tryCombineLoadiIntoImm(MachineBasicBlock &MBB) {
   return Changed;
 }
 
+/// Pattern 4: Negated operand folding (BH only)
+///
+/// On Blackhole, SFPMAD/SFPMUL/SFPADD have mod1 bits to negate operands:
+///   SFPMAD_MOD1_BH_COMPL_A = 1 (bit 0) — negate src_a
+///   SFPMAD_MOD1_BH_COMPL_C = 2 (bit 1) — negate src_c
+///
+/// Look for:
+///   %neg = SFPMUL %x, L11(-1.0), L9, 0   ; negation via multiply by -1
+///   %result = SFPMAD %neg, %b, %c, mod    ; uses negated value
+/// Replace with:
+///   %result = SFPMAD %x, %b, %c, mod ^ COMPL_A  ; toggle negate bit
+///
+/// Also handles:
+///   - Negation as input to SFPADD (toggle COMPL_C for addend)
+///   - Negated result: -(a*b+c) → toggle both COMPL_A and COMPL_C
+///
+/// GCC: gimple-rvtt-combine.cc:try_combine_negated_operands()
+bool RISCVXttSFPUCombine::tryCombineNegatedOperands(MachineBasicBlock &MBB) {
+  if (!STI->hasXttSFPUBH())
+    return false;  // BH-only optimization (mod1 complement bits)
+
+  const MachineRegisterInfo &MRI = MBB.getParent()->getRegInfo();
+  bool Changed = false;
+
+  // BH mod1 complement bits (from rvtt-protos.h)
+  constexpr unsigned COMPL_A = 1;  // Negate operand A
+  constexpr unsigned COMPL_C = 2;  // Negate operand C
+
+  for (auto MBBI = MBB.begin(), MBBE = MBB.end(); MBBI != MBBE; ++MBBI) {
+    MachineInstr &MI = *MBBI;
+
+    unsigned Opc = MI.getOpcode();
+    bool IsMul = (Opc == RISCV::SFPMUL);
+    bool IsAdd = (Opc == RISCV::SFPADD);
+    bool IsMad = (Opc == RISCV::SFPMAD);
+    if (!IsMul && !IsAdd && !IsMad)
+      continue;
+
+    // Check each source operand for negation (multiply by L11 = -1.0)
+    unsigned NumSrcOps = IsMad ? 3 : 2;
+    for (unsigned OpOffset = 0; OpOffset < NumSrcOps; ++OpOffset) {
+      unsigned OpIdx = 1 + OpOffset;  // Skip dest (operand 0)
+      const MachineOperand &SrcOp = MI.getOperand(OpIdx);
+      if (!SrcOp.isReg())
+        continue;
+
+      Register SrcReg = SrcOp.getReg();
+      if (!hasOneUse(SrcReg, MRI))
+        continue;
+
+      // Check if the source is a negation: SFPMUL(x, L11(-1.0), L9, 0)
+      MachineInstr *NegMI = getDefInst(SrcReg, MRI);
+      if (!NegMI || NegMI->getOpcode() != RISCV::SFPMUL)
+        continue;
+      if (NegMI->getParent() != &MBB)
+        continue;
+
+      // Check that src_b of the MUL is L11 (the -1.0 constant)
+      const MachineOperand &MulSrcB = NegMI->getOperand(2);
+      if (!MulSrcB.isReg() || MulSrcB.getReg() != RISCV::L11)
+        continue;
+
+      // Check mod1 is 0 (pure negation, no other modifiers)
+      if (NegMI->getOperand(4).getImm() != 0)
+        continue;
+
+      // Found a negation! Get the un-negated input
+      Register OrigReg = NegMI->getOperand(1).getReg();
+
+      // Determine which complement bit to toggle
+      // For MUL: always COMPL_A (negate first operand)
+      // For MAD: COMPL_A for op 0 or 1, COMPL_C for op 2
+      // For ADD: COMPL_C for the addend
+      unsigned ComplBit;
+      if (IsMul || (IsMad && OpOffset <= 1)) {
+        ComplBit = COMPL_A;
+      } else {
+        ComplBit = COMPL_C;
+      }
+
+      // Replace the negated operand with the original
+      MI.getOperand(OpIdx).setReg(OrigReg);
+
+      // Toggle the complement bit in mod1
+      unsigned Mod1Idx = MI.getNumOperands() - 1;  // mod1 is always last
+      unsigned OldMod = MI.getOperand(Mod1Idx).getImm();
+      MI.getOperand(Mod1Idx).setImm(OldMod ^ ComplBit);
+
+      // Remove the negation MUL
+      NegMI->eraseFromParent();
+
+      Changed = true;
+      LLVM_DEBUG(dbgs() << "  Folded negation into mod1 bit " << ComplBit
+                        << " for: " << MI);
+      break;  // Restart operand scan for this instruction
+    }
+  }
+
+  return Changed;
+}
+
 bool RISCVXttSFPUCombine::runOnMachineFunction(MachineFunction &MF) {
   STI = &MF.getSubtarget<RISCVSubtarget>();
 
@@ -249,6 +351,9 @@ bool RISCVXttSFPUCombine::runOnMachineFunction(MachineFunction &MF) {
 
   // Run combining passes over each basic block
   for (MachineBasicBlock &MBB : MF) {
+    // Negated operand folding (BH only, must run before MUL+ADD→MAD)
+    Changed |= tryCombineNegatedOperands(MBB);
+
     // MUL+ADD → MAD (most impactful optimization)
     Changed |= tryCombineMulAdd(MBB);
 

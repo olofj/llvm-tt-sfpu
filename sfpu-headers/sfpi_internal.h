@@ -195,6 +195,11 @@ void __builtin_riscv_tt_sfple(int lreg_c, int imm12, int mod1)
 #define SFPXIADD_MOD1_16BIT       (1 << 6)
 #define SFPXIADD_MOD1_DST_UNUSED  (1 << 7)
 
+// SFPMAD/SFPMUL/SFPADD BH complement bits (negated operand folding)
+// From sfpi-gcc/gcc/config/riscv/tt/rvtt-protos.h
+#define SFPMAD_MOD1_BH_COMPL_A  1   // Negate operand A (bit 0)
+#define SFPMAD_MOD1_BH_COMPL_C  2   // Negate operand C (bit 1)
+
 // SFPSWAP modes (C-025)
 #define SFPSWAP_MOD1_SWAP     0
 #define SFPSWAP_MOD1_MIN      1

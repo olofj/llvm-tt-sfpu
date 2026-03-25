@@ -90,11 +90,12 @@ E-005 (store register restriction), E-012 (ebreak NOPs).
 ### 1. SFPLOADI Combining (gimple-rvtt-combine)
 GCC folds SFPLOADI + consuming instruction into the immediate form when the
 constant fits. Example: `SFPLOADI L3, 0x3F80 + SFPMULI L3` → `SFPMULI 0x3F80`.
-LLVM does not yet have this DAGCombiner pattern.
+**LLVM now matches this** via `RISCVXttSFPUCombine::tryCombineLoadiIntoImm()`.
 
 ### 2. Negated Operand Folding (gimple-rvtt-combine)
-GCC folds `a * (-b)` by toggling the sign bit in the mod field, avoiding a
-separate SFPSETSGN instruction. LLVM does not yet pattern-match this.
+GCC folds `a * (-b)` by toggling the complement bit in mod1 (BH only):
+`SFPMAD_MOD1_BH_COMPL_A = 1`, `SFPMAD_MOD1_BH_COMPL_C = 2`.
+**LLVM now matches this** via `RISCVXttSFPUCombine::tryCombineNegatedOperands()`.
 
 ### 3. REPLAY Optimization (rtl-rvtt-replay)
 GCC identifies repeating instruction sequences and replaces clones with REPLAY
