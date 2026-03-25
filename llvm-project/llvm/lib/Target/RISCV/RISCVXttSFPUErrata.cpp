@@ -135,21 +135,30 @@ bool RISCVXttSFPUErrata::isSFPUInstr(const MachineInstr &MI) const {
   }
 }
 
-/// E-004: Insert SFPNOP after 2-cycle SFPU instructions on Wormhole.
-/// BH has hardware scoreboarding, so this is a no-op for BH targets.
+/// E-004: Insert SFPNOP after SFPU instructions that need pipeline delays.
 ///
-/// On WH, a dependent instruction immediately following a 2-cycle producer
-/// will read stale data. The hardware does not stall; the compiler must insert
-/// an SFPNOP (or schedule an independent instruction) to fill the gap.
+/// Validated against sfpi-gcc/gcc/config/riscv/tt/rtl-rvtt-schedule.cc:
+/// GCC uses three delay types per instruction, per architecture:
+///   - xtt_delay_none:    No NOP needed
+///   - xtt_delay_static:  Always insert NOP (SFPSWAP, SFPSHFT2 shuffle modes)
+///   - xtt_delay_dynamic: Insert NOP only if dependent instruction follows
 ///
-/// SFPSWAP additionally requires SFPNOP on the *next* cycle unconditionally
-/// (not just for dependent reads).
+/// BH: Hardware scoreboarding handles most RAW hazards automatically.
+///   - Static delay:  SFPSWAP (all modes), SFPSHFT2 (subvec shuffle modes)
+///   - Dynamic delay: SFPMAD, SFPADD, SFPMUL, SFPMULI, SFPADDI, SFPLUTFP32
+///   - No delay:      All 1-cycle instructions
+///
+/// WH: No hardware scoreboarding — all 2-cycle instructions need NOPs.
+///   - Static delay:  SFPSWAP, SFPSHFT2 (shuffle modes)
+///   - Dynamic delay: SFPMAD, SFPADD, SFPMUL, SFPMULI, SFPADDI, SFPLUTFP32
+///
+/// On WH, dynamic-delay instructions always get a NOP if the next SFPU
+/// instruction is dependent. On BH, dynamic-delay instructions only get a NOP
+/// if the next instruction is an immediately-following dependent read (the
+/// hardware scoreboard handles cross-basic-block dependencies).
 bool RISCVXttSFPUErrata::handleE004_PipelineHazards(MachineFunction &MF) {
-  // BH has hardware scoreboarding — skip entirely
-  if (STI->hasXttSFPUBH())
-    return false;
-
   bool Changed = false;
+  bool IsBH = STI->hasXttSFPUBH();
 
   for (MachineBasicBlock &MBB : MF) {
     for (auto MBBI = MBB.begin(), MBBE = MBB.end(); MBBI != MBBE; ++MBBI) {
@@ -158,32 +167,39 @@ bool RISCVXttSFPUErrata::handleE004_PipelineHazards(MachineFunction &MF) {
       if (!isSFPU2Cycle(MI))
         continue;
 
-      // Check if next instruction is SFPNOP (already safe)
+      // Check if next instruction is already SFPNOP (already safe)
       auto NextMI = std::next(MBBI);
       if (NextMI != MBBE && NextMI->getOpcode() == RISCV::SFPNOP)
         continue;
 
-      // For SFPSWAP: always insert NOP on next cycle
-      // For MAD/MUL/ADD: insert NOP if next instruction reads the destination
       bool NeedNop = false;
+      bool IsStaticDelay = (MI.getOpcode() == RISCV::SFPSWAP ||
+                            MI.getOpcode() == RISCV::SFPSHFT2);
 
-      if (MI.getOpcode() == RISCV::SFPSWAP) {
-        NeedNop = true;  // SFPSWAP always needs NOP on next cycle
-      } else if (NextMI != MBBE && isSFPUInstr(*NextMI)) {
-        // Check if next instruction reads from this instruction's destination
-        for (const MachineOperand &Def : MI.defs()) {
-          if (!Def.isReg())
-            continue;
-          for (const MachineOperand &Use : NextMI->uses()) {
-            if (Use.isReg() && Use.getReg() == Def.getReg()) {
-              NeedNop = true;
-              break;
+      if (IsStaticDelay) {
+        // Static delay: always need NOP if next is any non-NOP SFPU instruction.
+        // This applies on BOTH BH and WH.
+        if (NextMI != MBBE && isSFPUInstr(*NextMI))
+          NeedNop = true;
+      } else if (!IsBH) {
+        // Dynamic delay on WH (no scoreboarding): need NOP if next SFPU
+        // instruction reads our destination register.
+        if (NextMI != MBBE && isSFPUInstr(*NextMI)) {
+          for (const MachineOperand &Def : MI.defs()) {
+            if (!Def.isReg())
+              continue;
+            for (const MachineOperand &Use : NextMI->uses()) {
+              if (Use.isReg() && Use.getReg() == Def.getReg()) {
+                NeedNop = true;
+                break;
+              }
             }
+            if (NeedNop)
+              break;
           }
-          if (NeedNop)
-            break;
         }
       }
+      // Dynamic delay on BH: hardware scoreboard handles it — skip.
 
       if (NeedNop) {
         BuildMI(MBB, NextMI, MI.getDebugLoc(), TII->get(RISCV::SFPNOP));
