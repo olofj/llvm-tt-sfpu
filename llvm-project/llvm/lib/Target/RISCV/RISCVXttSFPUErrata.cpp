@@ -87,8 +87,7 @@ bool RISCVXttSFPUErrata::isSFPUInstr(const MachineInstr &MI) const {
   case RISCV::SFPLOADI:
   case RISCV::SFPSTORE_BH:
   case RISCV::SFPSTORE_WH:
-  case RISCV::SFPLUT_BH:
-  case RISCV::SFPLUT_WH:
+  case RISCV::SFPLUT:
   case RISCV::SFPMULI:
   case RISCV::SFPADDI:
   case RISCV::SFPDIVP2:

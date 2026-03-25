@@ -145,8 +145,13 @@ class SFPUUnaryCC<bits<8> opcode, string opcodestr>
 
 //---
 // 3-Operand Format (SFPMAD, SFPADD, SFPMUL):
-//   [31:24] opcode | [23:20] src_a | [19:16] src_b | [15:12] src_c |
-//   [11:8] reserved | [7:4] dest | [3:0] mod1
+//   [31:24] opcode | [23:20] EMPTY | [19:16] src_a | [15:12] src_b |
+//   [11:8] src_c | [7:4] dest | [3:0] mod1
+//
+// VALIDATED against sfpu-ops-bh.h:
+//   GCC: (lreg_src_a << 16) + (lreg_src_b << 12) + (lreg_src_c << 8)
+//        + (lreg_dest << 4) + (instr_mod1 << 0)
+//   Bits [23:20] are EMPTY (not src_a as FUNCTIONAL_UNITS.md suggested).
 //---
 class SFPU3Op<bits<8> opcode, string opcodestr>
     : RVInstTensix<opcode,
@@ -162,12 +167,12 @@ class SFPU3Op<bits<8> opcode, string opcodestr>
   bits<4> lreg_dest;
   bits<4> mod1;
 
-  let Inst{23-20} = lreg_src_a;
-  let Inst{19-16} = lreg_src_b;
-  let Inst{15-12} = lreg_src_c;
-  let Inst{11-8}  = 0b0000;     // Reserved field
-  let Inst{7-4}   = lreg_dest;
-  let Inst{3-0}   = mod1;
+  let Inst{23-20} = 0b0000;     // Empty (GCC: nothing at << 20)
+  let Inst{19-16} = lreg_src_a; // GCC: lreg_src_a << 16
+  let Inst{15-12} = lreg_src_b; // GCC: lreg_src_b << 12
+  let Inst{11-8}  = lreg_src_c; // GCC: lreg_src_c << 8
+  let Inst{7-4}   = lreg_dest;  // GCC: lreg_dest << 4
+  let Inst{3-0}   = mod1;       // GCC: instr_mod1 << 0
 }
 
 //---
@@ -209,8 +214,14 @@ class SFPULoadWH<bits<8> opcode, string opcodestr, dag outs, dag ins,
 }
 
 //---
-// Immediate-16 Format (SFPMULI, SFPADDI, SFPLOADI, SFPCONFIG):
+// Immediate-16 Format (SFPMULI, SFPADDI, SFPCONFIG):
 //   [31:24] opcode | [23:8] imm16 | [7:4] dest | [3:0] mod1
+//
+// VALIDATED against sfpu-ops-bh.h:
+//   GCC SFPMULI: (imm16_math << 8) + (lreg_dest << 4) + (instr_mod1 << 0)
+//   GCC SFPCONFIG: (imm16_math << 8) + (config_dest << 4) + (instr_mod1 << 0)
+//
+// NOTE: SFPLOADI does NOT use this format! It uses SFPULoadI format below.
 //---
 class SFPUImm16<bits<8> opcode, string opcodestr, dag outs, dag ins,
                 string argstr>
@@ -225,29 +236,103 @@ class SFPUImm16<bits<8> opcode, string opcodestr, dag outs, dag ins,
 }
 
 //---
+// SFPLOADI Format (0x71) — Load-style with imm16 at [15:0]:
+//   [31:24] opcode | [23:20] lreg_ind | [19:16] instr_mod0 | [15:0] imm16
+//
+// VALIDATED against sfpu-ops-bh.h:
+//   GCC: (lreg_ind << 20) + (instr_mod0 << 16) + (imm16 << 0)
+//   SFPLOADI uses the Load format header (lreg + mod0) but with imm16
+//   packed at [15:0] instead of addr_mode + addr. This is NOT Imm16 format.
+//---
+class SFPULoadI<bits<8> opcode, string opcodestr, dag outs, dag ins,
+                string argstr>
+    : RVInstTensix<opcode, outs, ins, opcodestr, argstr, []> {
+  bits<4> lreg_ind;
+  bits<4> mod0;
+  bits<16> imm16;
+
+  let Inst{23-20} = lreg_ind;   // GCC: lreg_ind << 20
+  let Inst{19-16} = mod0;       // GCC: instr_mod0 << 16
+  let Inst{15-0}  = imm16;      // GCC: imm16 << 0
+}
+
+//---
+// SFPLUT Format (0x73) — Load-style with no addr_mode field:
+//   [31:24] opcode | [23:20] lreg_ind | [19:16] instr_mod0 | [15:0] dest_reg_addr
+//
+// VALIDATED against sfpu-ops-bh.h:
+//   GCC: (lreg_ind << 20) + (instr_mod0 << 16) + (dest_reg_addr << 0)
+//   SFPLUT has NO addr_mode field. dest_reg_addr is a full 16-bit field.
+//---
+class SFPULut<bits<8> opcode, string opcodestr, dag outs, dag ins,
+              string argstr>
+    : RVInstTensix<opcode, outs, ins, opcodestr, argstr, []> {
+  bits<4> lreg_ind;
+  bits<4> mod0;
+  bits<16> dest_reg_addr;
+
+  let Inst{23-20} = lreg_ind;       // GCC: lreg_ind << 20
+  let Inst{19-16} = mod0;           // GCC: instr_mod0 << 16
+  let Inst{15-0}  = dest_reg_addr;  // GCC: dest_reg_addr << 0
+}
+
+//---
+// SFPLOADMACRO BH Format (0x93) — addr_mode is 2-bit even on BH (C-012):
+//   [31:24] opcode | [23:20] lreg | [19:16] mod0 | [15:14] addr_mode(2b) |
+//   [13:0] addr(14b)
+//
+// VALIDATED against sfpu-ops-bh.h:
+//   GCC: (lreg_ind << 20) + (instr_mod0 << 16) + (sfpu_addr_mode << 14)
+//        + (dest_reg_addr << 0)
+//   This is DIFFERENT from SFPLOAD BH which has 3-bit addr_mode!
+//---
+class SFPULoadMacroBH<bits<8> opcode, string opcodestr, dag outs, dag ins,
+                      string argstr>
+    : RVInstTensix<opcode, outs, ins, opcodestr, argstr, []> {
+  bits<4> lreg_ind;
+  bits<4> mod0;
+  bits<2> addr_mode;
+  bits<14> addr;
+
+  let Inst{23-20} = lreg_ind;   // GCC: lreg_ind << 20
+  let Inst{19-16} = mod0;       // GCC: instr_mod0 << 16
+  let Inst{15-14} = addr_mode;  // GCC: sfpu_addr_mode << 14 (2-bit!)
+  let Inst{13-0}  = addr;       // GCC: dest_reg_addr << 0
+}
+
+//---
 // Stochastic Rounding Format (SFP_STOCH_RND, 0x8E):
-//   [31:24] opcode | [23:20] rnd_mode(4b) | [19:12] imm8(8b) |
-//   [11:8] lreg_src_b | [7:4] lreg_dest | [3:0] mod1
+//   [31:24] opcode | [23:21] rnd_mode(3b) | [20:16] imm(5b) |
+//   [15:12] lreg_src_b | [11:8] lreg_src_c | [7:4] lreg_dest | [3:0] mod1
+//
+// VALIDATED against sfpu-ops-bh.h:
+//   GCC: (rnd_mode << 21) + (imm8_math << 16) + (lreg_src_b << 12)
+//        + (lreg_src_c << 8) + (lreg_dest << 4) + (instr_mod1 << 0)
+//   Note: 6 operands including src_c! rnd_mode is 3 bits, "imm8" is 5 bits.
+//   The name "imm8_math" in GCC is misleading — only 5 bits fit.
 //---
 class SFPUStochRnd<bits<8> opcode, string opcodestr>
     : RVInstTensix<opcode,
                    (outs SFPURegs:$lreg_dest),
-                   (ins uimm4_sfpu:$rnd_mode, uimm8_sfpu:$imm8,
-                        SFPUAllRegs:$lreg_src_b, uimm4_sfpu:$mod1),
+                   (ins uimm3_sfpu:$rnd_mode, uimm5_sfpu:$imm5,
+                        SFPUAllRegs:$lreg_src_b, SFPUAllRegs:$lreg_src_c,
+                        uimm4_sfpu:$mod1),
                    opcodestr,
-                   "$lreg_dest, $rnd_mode, $imm8, $lreg_src_b, $mod1",
+                   "$lreg_dest, $rnd_mode, $imm5, $lreg_src_b, $lreg_src_c, $mod1",
                    []> {
-  bits<4> rnd_mode;
-  bits<8> imm8;
+  bits<3> rnd_mode;
+  bits<5> imm5;
   bits<4> lreg_src_b;
+  bits<4> lreg_src_c;
   bits<4> lreg_dest;
   bits<4> mod1;
 
-  let Inst{23-20} = rnd_mode;
-  let Inst{19-12} = imm8;
-  let Inst{11-8}  = lreg_src_b;
-  let Inst{7-4}   = lreg_dest;
-  let Inst{3-0}   = mod1;
+  let Inst{23-21} = rnd_mode;   // GCC: rnd_mode << 21
+  let Inst{20-16} = imm5;       // GCC: imm8_math << 16 (only 5 bits fit)
+  let Inst{15-12} = lreg_src_b; // GCC: lreg_src_b << 12
+  let Inst{11-8}  = lreg_src_c; // GCC: lreg_src_c << 8
+  let Inst{7-4}   = lreg_dest;  // GCC: lreg_dest << 4
+  let Inst{3-0}   = mod1;       // GCC: instr_mod1 << 0
 }
 
 //---
@@ -291,10 +376,10 @@ def SFPLOAD_BH : SFPULoadBH<0x70, "sfpload",
   let Sched = [WriteSFPULoad, ReadSFPUSrc];
 }
 
-def SFPLOADI : SFPUImm16<0x71, "sfploadi",
-    (outs SFPURegs:$lreg_dest),
-    (ins uimm16_sfpu:$imm16, uimm4_sfpu:$mod1),
-    "$lreg_dest, $imm16, $mod1"> {
+def SFPLOADI : SFPULoadI<0x71, "sfploadi",
+    (outs SFPURegs:$lreg_ind),
+    (ins uimm4_sfpu:$mod0, uimm16_sfpu:$imm16),
+    "$lreg_ind, $mod0, $imm16"> {
   let mayLoad = 1;
   let Sched = [WriteSFPULoad];
 }
@@ -308,18 +393,18 @@ def SFPSTORE_BH : SFPULoadBH<0x72, "sfpstore",
   let Sched = [WriteSFPUStore, ReadSFPUSrc];
 }
 
-def SFPLUT_BH : SFPULoadBH<0x73, "sfplut",
+def SFPLUT : SFPULut<0x73, "sfplut",
     (outs SFPURegs:$lreg_ind),
-    (ins uimm4_sfpu:$mod0, uimm3_sfpu:$addr_mode, uimm13_sfpu:$addr),
-    "$lreg_ind, $mod0, $addr_mode, $addr"> {
+    (ins uimm4_sfpu:$mod0, uimm16_sfpu:$dest_reg_addr),
+    "$lreg_ind, $mod0, $dest_reg_addr"> {
   let mayLoad = 1;
   let Sched = [WriteSFPULoad, ReadSFPUSrc];
 }
 
-def SFPLOADMACRO_BH : SFPULoadBH<0x93, "sfploadmacro",
+def SFPLOADMACRO_BH : SFPULoadMacroBH<0x93, "sfploadmacro",
     (outs),
     (ins SFPUAllRegs:$lreg_ind, uimm4_sfpu:$mod0,
-         uimm3_sfpu:$addr_mode, uimm13_sfpu:$addr),
+         uimm2_sfpu:$addr_mode, uimm14_sfpu:$addr),
     "$lreg_ind, $mod0, $addr_mode, $addr"> {
   let mayLoad = 1;
   // Writes L16 (macro staging register)
@@ -426,7 +511,7 @@ def SFPXOR    : SFPUUnaryReg<0x8D, "sfpxor">,
 //--- Stochastic Rounding (round unit, 1 cycle) ---
 
 def SFP_STOCH_RND : SFPUStochRnd<0x8E, "sfpstochrnd">,
-                    Sched<[WriteSFPURound, ReadSFPUSrc]>;
+                    Sched<[WriteSFPURound, ReadSFPUSrc, ReadSFPUSrc]>;
 
 //--- NOP ---
 
@@ -494,13 +579,8 @@ def SFPSTORE_WH : SFPULoadWH<0x72, "sfpstore",
   let Sched = [WriteSFPUStore, ReadSFPUSrc];
 }
 
-def SFPLUT_WH : SFPULoadWH<0x73, "sfplut",
-    (outs SFPURegs:$lreg_ind),
-    (ins uimm4_sfpu:$mod0, uimm2_sfpu:$addr_mode, uimm14_sfpu:$addr),
-    "$lreg_ind, $mod0, $addr_mode, $addr"> {
-  let mayLoad = 1;
-  let Sched = [WriteSFPULoad, ReadSFPUSrc];
-}
+// SFPLUT uses the same format on WH and BH (no addr_mode field)
+// So we don't need a separate WH definition — SFPLUT above is arch-independent.
 
 def SFPLOADMACRO_WH : SFPULoadWH<0x93, "sfploadmacro",
     (outs),

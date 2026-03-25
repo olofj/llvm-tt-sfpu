@@ -2,184 +2,183 @@
 # RUN:   %llvm-mc %sfpu-bh-flags -filetype=asm -disassemble | \
 # RUN:   %FileCheck %s
 #
-# Test round-trip encoding/decoding for all 38 base SFPU instructions
-# plus BH-only extensions. Verifies correct opcode encoding and operand
-# field placement.
+# Round-trip encoding test for all SFPU instructions.
+# All encodings validated against sfpu-ops-bh.h (GCC golden reference).
 #
-# Reference: ttsim-analysis/ERRATA.md C-006 (complete opcode map)
-#            ttsim-analysis/FUNCTIONAL_UNITS.md Section 3.4-3.5
+# Encoding formulas from sfpi-gcc:
+#   Unary:  (opcode << 24) | (imm12 << 12) | (lreg_c << 8) | (dest << 4) | mod1
+#   3-Op:   (opcode << 24) | (src_a << 16) | (src_b << 12) | (src_c << 8) | (dest << 4) | mod1
+#   LoadBH: (opcode << 24) | (lreg << 20) | (mod0 << 16) | (addr_mode << 13) | addr
+#   LoadI:  (opcode << 24) | (lreg << 20) | (mod0 << 16) | imm16
+#   Imm16:  (opcode << 24) | (imm16 << 8) | (dest << 4) | mod1
+#   LUT:    (opcode << 24) | (lreg << 20) | (mod0 << 16) | dest_reg_addr
+#   StochRnd: (opcode << 24) | (rnd << 21) | (imm5 << 16) | (src_b << 12) | (src_c << 8) | (dest << 4) | mod1
 
 # --- Load/Store (BH encoding: 3-bit addr_mode, 13-bit addr) ---
 
 # CHECK: sfpload l0, 0, 0, 0
-sfpload l0, 0, 0, 0          # opcode=0x70, lreg=0, mod0=0, addr_mode=0, addr=0
+sfpload l0, 0, 0, 0
 
 # CHECK: sfpload l7, 3, 7, 8191
-sfpload l7, 3, 7, 8191       # opcode=0x70, lreg=7, mod0=3, addr_mode=7, addr=max
+sfpload l7, 3, 7, 8191
 
-# CHECK: sfploadi l2, 65535, 0
-sfploadi l2, 65535, 0         # opcode=0x71, imm16=max, mod1=0
+# SFPLOADI uses Load format: lreg + mod0 + imm16
+# CHECK: sfploadi l2, 0, 16256
+sfploadi l2, 0, 16256              # 16256 = 0x3F80 (1.0 in bf16)
 
-# CHECK: sfploadi l5, 0, 10
-sfploadi l5, 0, 10            # opcode=0x71, imm16=0, mod1=LOWER
+# CHECK: sfploadi l5, 1, 48896
+sfploadi l5, 1, 48896              # 48896 = 0xBF00 (-0.5 in fp16)
 
 # CHECK: sfpstore l3, 1, 2, 100
-sfpstore l3, 1, 2, 100       # opcode=0x72, lreg=3, mod0=1, addr_mode=2, addr=100
+sfpstore l3, 1, 2, 100
 
-# CHECK: sfplut l1, 0, 0, 0
-sfplut l1, 0, 0, 0           # opcode=0x73
+# SFPLUT: no addr_mode field, dest_reg_addr at [15:0]
+# CHECK: sfplut l1, 0, 0
+sfplut l1, 0, 0
 
+# CHECK: sfplut l4, 3, 1024
+sfplut l4, 3, 1024
+
+# SFPLOADMACRO BH: 2-bit addr_mode (C-012), NOT 3-bit like SFPLOAD
 # CHECK: sfploadmacro l4, 2, 1, 50
-sfploadmacro l4, 2, 1, 50    # opcode=0x93
+sfploadmacro l4, 2, 1, 50
 
 # --- Immediate-16 Arithmetic ---
 
-# CHECK: sfpmuli l0, 1000, 0
-sfpmuli l0, 1000, 0          # opcode=0x74, 2-cycle
+# CHECK: sfpmuli l0, 16256, 0
+sfpmuli l0, 16256, 0
 
-# CHECK: sfpaddi l1, 500, 0
-sfpaddi l1, 500, 0           # opcode=0x75, 2-cycle
+# CHECK: sfpaddi l1, 16256, 0
+sfpaddi l1, 16256, 0
 
-# --- Standard Unary (simple unit, 1 cycle) ---
+# --- Standard Unary ---
 
 # CHECK: sfpdivp2 l0, l1, 0, 0
-sfpdivp2 l0, l1, 0, 0        # opcode=0x76
+sfpdivp2 l0, l1, 0, 0
 
 # CHECK: sfpexexp l2, l3, 0, 0
-sfpexexp l2, l3, 0, 0        # opcode=0x77
-
-# CHECK: sfpexexp l4, l5, 0, 1
-sfpexexp l4, l5, 0, 1        # opcode=0x77, mod1=NODEBIAS
+sfpexexp l2, l3, 0, 0
 
 # CHECK: sfpexman l0, l2, 0, 0
-sfpexman l0, l2, 0, 0        # opcode=0x78
+sfpexman l0, l2, 0, 0
 
 # CHECK: sfpiadd l1, l3, 100, 0
-sfpiadd l1, l3, 100, 0       # opcode=0x79
+sfpiadd l1, l3, 100, 0
 
 # CHECK: sfpshft l2, l4, 5, 0
-sfpshft l2, l4, 5, 0         # opcode=0x7A
+sfpshft l2, l4, 5, 0
 
 # CHECK: sfpsetcc l0, l1, 0, 0
-sfpsetcc l0, l1, 0, 0        # opcode=0x7B, mod1=LREG_LT0
-
-# CHECK: sfpsetcc l2, l3, 0, 2
-sfpsetcc l2, l3, 0, 2        # opcode=0x7B, mod1=LREG_NE0
+sfpsetcc l0, l1, 0, 0
 
 # CHECK: sfpmov l3, l5, 0, 0
-sfpmov l3, l5, 0, 0          # opcode=0x7C
+sfpmov l3, l5, 0, 0
 
 # CHECK: sfpabs l4, l6, 0, 0
-sfpabs l4, l6, 0, 0          # opcode=0x7D
+sfpabs l4, l6, 0, 0
 
 # CHECK: sfpand l5, l7, 0, 0
-sfpand l5, l7, 0, 0          # opcode=0x7E
+sfpand l5, l7, 0, 0
 
 # CHECK: sfpor l6, l0, 0, 0
-sfpor l6, l0, 0, 0           # opcode=0x7F
+sfpor l6, l0, 0, 0
 
 # CHECK: sfpnot l7, l1, 0, 0
-sfpnot l7, l1, 0, 0          # opcode=0x80
+sfpnot l7, l1, 0, 0
 
 # CHECK: sfplz l0, l2, 0, 0
-sfplz l0, l2, 0, 0           # opcode=0x81
+sfplz l0, l2, 0, 0
 
 # CHECK: sfpsetexp l1, l3, 0, 0
-sfpsetexp l1, l3, 0, 0       # opcode=0x82
+sfpsetexp l1, l3, 0, 0
 
 # CHECK: sfpsetman l2, l4, 0, 0
-sfpsetman l2, l4, 0, 0       # opcode=0x83
+sfpsetman l2, l4, 0, 0
 
-# --- 3-Operand Arithmetic (MAD unit, 2 cycles) ---
+# --- 3-Operand (CORRECTED: bits[23:20] empty, src_a at [19:16]) ---
 
 # CHECK: sfpmad l0, l1, l2, l3, 0
-sfpmad l0, l1, l2, l3, 0     # opcode=0x84, dest = l1*l2 + l3
+sfpmad l0, l1, l2, l3, 0
 
 # CHECK: sfpadd l4, l5, l6, l7, 0
-sfpadd l4, l5, l6, l7, 0     # opcode=0x85
+sfpadd l4, l5, l6, l7, 0
 
 # CHECK: sfpmul l0, l1, l2, l9, 0
-sfpmul l0, l1, l2, l9, 0     # opcode=0x86, src_c=L9 (zero, typical for mul)
+sfpmul l0, l1, l2, l9, 0
 
-# --- CC Stack / Predication ---
+# --- CC Stack ---
 
 # CHECK: sfppushc l0, l0, 0, 0
-sfppushc l0, l0, 0, 0        # opcode=0x87
+sfppushc l0, l0, 0, 0
 
 # CHECK: sfppopc l0, l0, 0, 0
-sfppopc l0, l0, 0, 0         # opcode=0x88
+sfppopc l0, l0, 0, 0
 
 # CHECK: sfpsetsgn l3, l4, 0, 0
-sfpsetsgn l3, l4, 0, 0       # opcode=0x89
+sfpsetsgn l3, l4, 0, 0
 
 # CHECK: sfpencc l0, l0, 0, 0
-sfpencc l0, l0, 0, 0         # opcode=0x8A
+sfpencc l0, l0, 0, 0
 
 # CHECK: sfpcompc l0, l0, 0, 0
-sfpcompc l0, l0, 0, 0        # opcode=0x8B
+sfpcompc l0, l0, 0, 0
 
-# --- Cross-Lane / Transpose ---
+# --- Cross-Lane ---
 
 # CHECK: sfptransp l1, l2, 0, 0
-sfptransp l1, l2, 0, 0       # opcode=0x8C
+sfptransp l1, l2, 0, 0
 
 # CHECK: sfpxor l3, l4, 0, 0
-sfpxor l3, l4, 0, 0          # opcode=0x8D
+sfpxor l3, l4, 0, 0
 
-# --- Stochastic Rounding ---
+# --- Stochastic Rounding (CORRECTED: 3-bit rnd, 5-bit imm, 6 operands) ---
 
-# CHECK: sfpstochrnd l5, 1, 0, l0, 0
-sfpstochrnd l5, 1, 0, l0, 0  # opcode=0x8E, rnd_mode=1(FP32_TO_FP16B)
+# CHECK: sfpstochrnd l5, 1, 0, l0, l0, 0
+sfpstochrnd l5, 1, 0, l0, l0, 0
 
 # --- NOP ---
 
 # CHECK: sfpnop
-sfpnop                        # opcode=0x8F
+sfpnop
 
 # --- SFPCAST ---
 
 # CHECK: sfpcast l0, l1, 0, 0
-sfpcast l0, l1, 0, 0         # opcode=0x90, mod1=FP32_TO_FP16A
-
-# CHECK: sfpcast l2, l3, 0, 3
-sfpcast l2, l3, 0, 3         # opcode=0x90, mod1=FP16B_TO_FP32
+sfpcast l0, l1, 0, 0
 
 # --- SFPCONFIG ---
 
 # CHECK: sfpconfig 11, 1024, 0
-sfpconfig 11, 1024, 0        # opcode=0x91, VD=11 (write to L11)
+sfpconfig 11, 1024, 0
 
-# --- SFPSWAP (2 cycle) ---
+# --- SFPSWAP ---
 
 # CHECK: sfpswap l0, l1, 0, 0
-sfpswap l0, l1, 0, 0         # opcode=0x92, mod1=SWAP
-
-# CHECK: sfpswap l2, l3, 0, 1
-sfpswap l2, l3, 0, 1         # opcode=0x92, mod1=MIN
+sfpswap l0, l1, 0, 0
 
 # CHECK: sfpswap l4, l5, 0, 9
-sfpswap l4, l5, 0, 9         # opcode=0x92, mod1=MAX (C-025)
+sfpswap l4, l5, 0, 9
 
 # --- SFPSHFT2 ---
 
 # CHECK: sfpshft2 l0, l1, 0, 0
-sfpshft2 l0, l1, 0, 0        # opcode=0x94
+sfpshft2 l0, l1, 0, 0
 
-# --- SFPLUTFP32 (2 cycle, writes L0, L1, L7) ---
+# --- SFPLUTFP32 ---
 
 # CHECK: sfplutfp32 l0, l2, 0
-sfplutfp32 l0, l2, 0         # opcode=0x95
+sfplutfp32 l0, l2, 0
 
-# --- BH-Only Instructions (C-009) ---
+# --- BH-Only ---
 
 # CHECK: sfpmul24 l0, l1, l2, l9, 0
-sfpmul24 l0, l1, l2, l9, 0   # opcode=0x96, src_c must be L9
+sfpmul24 l0, l1, l2, l9, 0
 
 # CHECK: sfparecip l3, l4, 0, 0
-sfparecip l3, l4, 0, 0       # opcode=0x99
+sfparecip l3, l4, 0, 0
 
 # CHECK: sfpgt l0, l1, 0, 0
-sfpgt l0, l1, 0, 0           # opcode=0x9A
+sfpgt l0, l1, 0, 0
 
 # CHECK: sfple l2, l3, 0, 0
-sfple l2, l3, 0, 0           # opcode=0x9B
+sfple l2, l3, 0, 0

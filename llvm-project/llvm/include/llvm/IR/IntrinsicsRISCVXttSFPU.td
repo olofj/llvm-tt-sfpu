@@ -21,10 +21,10 @@ def int_riscv_tt_sfpload
                 [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty], // mod0, addr_mode, addr
                 [IntrReadMem, IntrHasSideEffects]>;
 
-// SFPLOADI: load immediate to LReg
+// SFPLOADI: load immediate to LReg (Load-format: lreg + mod0 + imm16)
 def int_riscv_tt_sfploadi
     : Intrinsic<[llvm_i32_ty],                         // dest LReg
-                [llvm_i32_ty, llvm_i32_ty],             // imm16, mod1
+                [llvm_i32_ty, llvm_i32_ty],             // mod0, imm16
                 [IntrNoMem, IntrHasSideEffects]>;
 
 // SFPSTORE: store LReg to Dst

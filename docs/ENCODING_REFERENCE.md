@@ -2,7 +2,7 @@
 
 Extracted from ttsim-analysis for use by the LLVM backend implementation.
 
-## Encoding Formats
+## Encoding Formats (Validated against sfpu-ops-bh.h)
 
 ### Standard Unary (18 instructions)
 ```
@@ -10,29 +10,53 @@ Extracted from ttsim-analysis for use by the LLVM backend implementation.
 ```
 
 ### 3-Operand (SFPMAD, SFPADD, SFPMUL)
+**CORRECTED**: bits[23:20] are EMPTY, src_a starts at [19:16]
 ```
-[31:24] opcode | [23:20] lreg_src_a | [19:16] lreg_src_b | [15:12] lreg_src_c | [11:8] reserved | [7:4] lreg_dest | [3:0] instr_mod1
+[31:24] opcode | [23:20] EMPTY | [19:16] src_a | [15:12] src_b | [11:8] src_c | [7:4] lreg_dest | [3:0] instr_mod1
 ```
+GCC formula: `(src_a << 16) + (src_b << 12) + (src_c << 8) + (dest << 4) + mod1`
 
-### Load/Store BH (SFPLOAD, SFPSTORE, SFPLUT, SFPLOADMACRO)
+### Load/Store BH (SFPLOAD, SFPSTORE only)
 ```
 [31:24] opcode | [23:20] lreg_ind | [19:16] instr_mod0 | [15:13] sfpu_addr_mode(3b) | [12:0] dest_reg_addr(13b)
 ```
 
-### Load/Store WH
+### Load/Store WH (SFPLOAD, SFPSTORE only)
 ```
 [31:24] opcode | [23:20] lreg_ind | [19:16] instr_mod0 | [15:14] sfpu_addr_mode(2b) | [13:0] dest_reg_addr(14b)
 ```
 
-### Immediate-16 (SFPMULI, SFPADDI, SFPLOADI, SFPCONFIG)
+### SFPLOADI (Load format with imm16, NOT Imm16 format!)
+**CORRECTED**: Uses Load header (lreg + mod0) with imm16 at [15:0]
+```
+[31:24] 0x71 | [23:20] lreg_ind | [19:16] instr_mod0 | [15:0] imm16
+```
+GCC formula: `(lreg_ind << 20) + (instr_mod0 << 16) + (imm16 << 0)`
+
+### SFPLUT (no addr_mode field!)
+**CORRECTED**: dest_reg_addr is 16 bits, no addr_mode
+```
+[31:24] 0x73 | [23:20] lreg_ind | [19:16] instr_mod0 | [15:0] dest_reg_addr(16b)
+```
+
+### SFPLOADMACRO BH (2-bit addr_mode! C-012)
+**CORRECTED**: Uses 2-bit addr_mode even on BH (same as WH)
+```
+[31:24] 0x93 | [23:20] lreg_ind | [19:16] instr_mod0 | [15:14] sfpu_addr_mode(2b) | [13:0] dest_reg_addr(14b)
+```
+
+### Immediate-16 (SFPMULI, SFPADDI, SFPCONFIG)
+Note: SFPLOADI does NOT use this format.
 ```
 [31:24] opcode | [23:8] imm16_math | [7:4] lreg_dest | [3:0] instr_mod1
 ```
 
 ### Stochastic Rounding (SFP_STOCH_RND)
+**CORRECTED**: 3-bit rnd_mode, 5-bit imm, 6 operands (includes src_c)
 ```
-[31:24] opcode | [23:20] rnd_mode(4b) | [19:12] imm8_math(8b) | [11:8] lreg_src_b | [7:4] lreg_dest | [3:0] instr_mod1
+[31:24] 0x8E | [23:21] rnd_mode(3b) | [20:16] imm5(5b) | [15:12] src_b | [11:8] src_c | [7:4] lreg_dest | [3:0] instr_mod1
 ```
+GCC formula: `(rnd_mode << 21) + (imm << 16) + (src_b << 12) + (src_c << 8) + (dest << 4) + mod1`
 
 ## Complete Opcode Map
 
