@@ -27,6 +27,7 @@ from xml.etree.ElementTree import Element, SubElement, tostring, indent
 # Add bench/ to path
 sys.path.insert(0, os.path.dirname(__file__))
 from sfpu_kernels import Kernel, get_kernels, get_categories
+from cycle_model import simulate_cycles
 
 # ============================================================================
 # SFPU Cycle Model
@@ -102,6 +103,10 @@ def analyze_sequence(name: str, compiler: str, insns: List[str]) -> KernelMetric
 
         wh_cycles += LATENCY.get(op, 1)
 
+    # Use the cycle-accurate model for BH and WH
+    bh_sim = simulate_cycles(insns, bh=True)
+    wh_sim = simulate_cycles(insns, bh=False)
+
     return KernelMetrics(
         name=name,
         compiler=compiler,
@@ -113,9 +118,9 @@ def analyze_sequence(name: str, compiler: str, insns: List[str]) -> KernelMetric
         load_count=loads,
         store_count=stores,
         cc_stack_ops=cc_ops,
-        estimated_cycles_bh=len(insns),  # BH: 1 IPC, HW scoreboard
-        estimated_cycles_wh=wh_cycles,    # WH: sum of latencies
-        code_size_bytes=len(insns) * 4,   # 4 bytes per instruction
+        estimated_cycles_bh=bh_sim.total_cycles,  # Cycle-accurate with stalls
+        estimated_cycles_wh=wh_sim.total_cycles,   # Cycle-accurate for WH
+        code_size_bytes=len(insns) * 4,
         unique_opcodes=len(opcodes),
     )
 
@@ -188,39 +193,49 @@ def format_console(results: List[BenchmarkResult]) -> str:
 
     total_gcc = total_llvm = total_nops_gcc = total_nops_llvm = 0
 
+    total_gcc_cyc = total_llvm_cyc = 0
+
     for cat in sorted(by_category):
         lines.append(f"\n--- {cat} ---")
-        lines.append(f"  {'Kernel':<30s} {'GCC':>6s} {'LLVM':>6s} {'Save':>6s} {'%':>5s}  {'NOPs':>5s} {'MADs':>5s}")
-        lines.append(f"  {'':30s} {'insns':>6s} {'insns':>6s} {'':>6s} {'':>5s}  {'elim':>5s} {'gain':>5s}")
+        lines.append(f"  {'Kernel':<26s} {'--- Instructions ---':>22s}  {'--- BH Cycles ---':>20s}  {'NOPs':>5s}")
+        lines.append(f"  {'':26s} {'GCC':>6s} {'LLVM':>6s} {'Save':>5s} {'%':>4s}  {'GCC':>6s} {'LLVM':>6s} {'Save':>5s} {'%':>4s}  {'elim':>5s}")
 
         for r in by_category[cat]:
-            status = "OK" if r.passed else "REGR"
+            status = "OK" if r.passed else "!!"
+            cyc_save = r.gcc_metrics.estimated_cycles_bh - r.llvm_metrics.estimated_cycles_bh
+            cyc_pct = (cyc_save / r.gcc_metrics.estimated_cycles_bh * 100) if r.gcc_metrics.estimated_cycles_bh > 0 else 0
             lines.append(
-                f"  [{status}] {r.kernel_name:<25s} "
+                f"  [{status}] {r.kernel_name:<22s} "
                 f"{r.gcc_metrics.total_instructions:6d} "
                 f"{r.llvm_metrics.total_instructions:6d} "
-                f"{r.instruction_reduction:+6d} "
-                f"{r.instruction_reduction_pct:4.0f}%  "
-                f"{r.nop_elimination:+5d} "
-                f"{r.mad_gain:+5d}"
+                f"{r.instruction_reduction:+5d} "
+                f"{r.instruction_reduction_pct:3.0f}%  "
+                f"{r.gcc_metrics.estimated_cycles_bh:6d} "
+                f"{r.llvm_metrics.estimated_cycles_bh:6d} "
+                f"{cyc_save:+5d} "
+                f"{cyc_pct:3.0f}%  "
+                f"{r.nop_elimination:+5d}"
             )
             total_gcc += r.gcc_metrics.total_instructions
             total_llvm += r.llvm_metrics.total_instructions
             total_nops_gcc += r.gcc_metrics.nop_count
             total_nops_llvm += r.llvm_metrics.nop_count
+            total_gcc_cyc += r.gcc_metrics.estimated_cycles_bh
+            total_llvm_cyc += r.llvm_metrics.estimated_cycles_bh
 
     total_save = total_gcc - total_llvm
     total_pct = (total_save / total_gcc * 100) if total_gcc > 0 else 0
+    cyc_save = total_gcc_cyc - total_llvm_cyc
+    cyc_pct = (cyc_save / total_gcc_cyc * 100) if total_gcc_cyc > 0 else 0
     passed = sum(1 for r in results if r.passed)
     failed = len(results) - passed
 
-    lines.append(f"\n{'=' * 95}")
+    lines.append(f"\n{'=' * 100}")
     lines.append(f"TOTALS ({len(results)} kernels, {passed} passed, {failed} regressions):")
-    lines.append(f"  GCC:  {total_gcc:6d} instructions ({total_nops_gcc} NOPs)")
-    lines.append(f"  LLVM: {total_llvm:6d} instructions ({total_nops_llvm} NOPs)")
-    lines.append(f"  Savings: {total_save} instructions ({total_pct:.1f}% reduction)")
-    lines.append(f"  NOPs eliminated: {total_nops_gcc - total_nops_llvm}")
-    lines.append(f"{'=' * 95}")
+    lines.append(f"  Instructions: GCC {total_gcc:4d} → LLVM {total_llvm:4d}  ({total_save:+d}, {total_pct:.1f}% reduction)")
+    lines.append(f"  BH Cycles:    GCC {total_gcc_cyc:4d} → LLVM {total_llvm_cyc:4d}  ({cyc_save:+d}, {cyc_pct:.1f}% reduction)")
+    lines.append(f"  NOPs:         GCC {total_nops_gcc:4d} → LLVM {total_nops_llvm:4d}  ({total_nops_gcc - total_nops_llvm} eliminated)")
+    lines.append(f"{'=' * 100}")
 
     return "\n".join(lines)
 

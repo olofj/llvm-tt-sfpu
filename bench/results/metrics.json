@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2026-03-26T00:39:10.321043+00:00",
+    "timestamp": "2026-03-26T00:50:08.743874+00:00",
     "backend": "XttSFPU",
     "target": "tensix-bh",
     "llvm_version": "19.1.0",
@@ -33,8 +33,8 @@
         "load_count": 1,
         "store_count": 1,
         "cc_stack_ops": 0,
-        "estimated_cycles_bh": 10,
-        "estimated_cycles_wh": 14,
+        "estimated_cycles_bh": 12,
+        "estimated_cycles_wh": 10,
         "code_size_bytes": 40,
         "unique_opcodes": 7
       },
@@ -49,8 +49,8 @@
         "load_count": 1,
         "store_count": 1,
         "cc_stack_ops": 0,
-        "estimated_cycles_bh": 6,
-        "estimated_cycles_wh": 8,
+        "estimated_cycles_bh": 8,
+        "estimated_cycles_wh": 6,
         "code_size_bytes": 24,
         "unique_opcodes": 5
       },
@@ -60,7 +60,7 @@
         "nop_elimination": 2,
         "mad_gain": 2,
         "cycle_reduction_bh": 4,
-        "cycle_reduction_bh_pct": 40.0
+        "cycle_reduction_bh_pct": 33.3
       }
     },
     {
@@ -78,8 +78,8 @@
         "load_count": 1,
         "store_count": 1,
         "cc_stack_ops": 4,
-        "estimated_cycles_bh": 18,
-        "estimated_cycles_wh": 23,
+        "estimated_cycles_bh": 19,
+        "estimated_cycles_wh": 18,
         "code_size_bytes": 72,
         "unique_opcodes": 10
       },
@@ -94,8 +94,8 @@
         "load_count": 1,
         "store_count": 1,
         "cc_stack_ops": 4,
-        "estimated_cycles_bh": 12,
-        "estimated_cycles_wh": 15,
+        "estimated_cycles_bh": 13,
+        "estimated_cycles_wh": 12,
         "code_size_bytes": 48,
         "unique_opcodes": 9
       },
@@ -105,7 +105,7 @@
         "nop_elimination": 3,
         "mad_gain": 2,
         "cycle_reduction_bh": 6,
-        "cycle_reduction_bh_pct": 33.3
+        "cycle_reduction_bh_pct": 31.6
       }
     },
     {
@@ -169,7 +169,7 @@
         "store_count": 1,
         "cc_stack_ops": 0,
         "estimated_cycles_bh": 6,
-        "estimated_cycles_wh": 8,
+        "estimated_cycles_wh": 6,
         "code_size_bytes": 24,
         "unique_opcodes": 5
       },
@@ -184,8 +184,8 @@
         "load_count": 2,
         "store_count": 1,
         "cc_stack_ops": 0,
-        "estimated_cycles_bh": 4,
-        "estimated_cycles_wh": 6,
+        "estimated_cycles_bh": 5,
+        "estimated_cycles_wh": 4,
         "code_size_bytes": 16,
         "unique_opcodes": 4
       },
@@ -194,8 +194,8 @@
         "instruction_reduction_pct": 33.3,
         "nop_elimination": 2,
         "mad_gain": 0,
-        "cycle_reduction_bh": 2,
-        "cycle_reduction_bh_pct": 33.3
+        "cycle_reduction_bh": 1,
+        "cycle_reduction_bh_pct": 16.7
       }
     },
     {
@@ -214,7 +214,7 @@
         "store_count": 1,
         "cc_stack_ops": 0,
         "estimated_cycles_bh": 8,
-        "estimated_cycles_wh": 11,
+        "estimated_cycles_wh": 8,
         "code_size_bytes": 32,
         "unique_opcodes": 6
       },
@@ -229,8 +229,8 @@
         "load_count": 2,
         "store_count": 1,
         "cc_stack_ops": 0,
-        "estimated_cycles_bh": 5,
-        "estimated_cycles_wh": 8,
+        "estimated_cycles_bh": 7,
+        "estimated_cycles_wh": 5,
         "code_size_bytes": 20,
         "unique_opcodes": 5
       },
@@ -239,8 +239,8 @@
         "instruction_reduction_pct": 37.5,
         "nop_elimination": 3,
         "mad_gain": 1,
-        "cycle_reduction_bh": 3,
-        "cycle_reduction_bh_pct": 37.5
+        "cycle_reduction_bh": 1,
+        "cycle_reduction_bh_pct": 12.5
       }
     },
     {
@@ -258,8 +258,8 @@
         "load_count": 1,
         "store_count": 1,
         "cc_stack_ops": 0,
-        "estimated_cycles_bh": 13,
-        "estimated_cycles_wh": 20,
+        "estimated_cycles_bh": 15,
+        "estimated_cycles_wh": 13,
         "code_size_bytes": 52,
         "unique_opcodes": 5
       },
@@ -274,8 +274,8 @@
         "load_count": 1,
         "store_count": 1,
         "cc_stack_ops": 0,
-        "estimated_cycles_bh": 7,
-        "estimated_cycles_wh": 12,
+        "estimated_cycles_bh": 11,
+        "estimated_cycles_wh": 7,
         "code_size_bytes": 28,
         "unique_opcodes": 4
       },
@@ -284,8 +284,8 @@
         "instruction_reduction_pct": 46.2,
         "nop_elimination": 4,
         "mad_gain": 4,
-        "cycle_reduction_bh": 6,
-        "cycle_reduction_bh_pct": 46.2
+        "cycle_reduction_bh": 4,
+        "cycle_reduction_bh_pct": 26.7
       }
     },
     {
@@ -304,7 +304,7 @@
         "store_count": 1,
         "cc_stack_ops": 2,
         "estimated_cycles_bh": 12,
-        "estimated_cycles_wh": 16,
+        "estimated_cycles_wh": 12,
         "code_size_bytes": 48,
         "unique_opcodes": 9
       },
@@ -320,7 +320,7 @@
         "store_count": 1,
         "cc_stack_ops": 2,
         "estimated_cycles_bh": 8,
-        "estimated_cycles_wh": 10,
+        "estimated_cycles_wh": 8,
         "code_size_bytes": 32,
         "unique_opcodes": 7
       },
@@ -348,8 +348,8 @@
         "load_count": 1,
         "store_count": 1,
         "cc_stack_ops": 2,
-        "estimated_cycles_bh": 18,
-        "estimated_cycles_wh": 26,
+        "estimated_cycles_bh": 20,
+        "estimated_cycles_wh": 18,
         "code_size_bytes": 72,
         "unique_opcodes": 9
       },
@@ -364,8 +364,8 @@
         "load_count": 1,
         "store_count": 1,
         "cc_stack_ops": 2,
-        "estimated_cycles_bh": 10,
-        "estimated_cycles_wh": 14,
+        "estimated_cycles_bh": 12,
+        "estimated_cycles_wh": 10,
         "code_size_bytes": 40,
         "unique_opcodes": 7
       },
@@ -375,7 +375,7 @@
         "nop_elimination": 4,
         "mad_gain": 4,
         "cycle_reduction_bh": 8,
-        "cycle_reduction_bh_pct": 44.4
+        "cycle_reduction_bh_pct": 40.0
       }
     },
     {
@@ -393,8 +393,8 @@
         "load_count": 1,
         "store_count": 1,
         "cc_stack_ops": 0,
-        "estimated_cycles_bh": 10,
-        "estimated_cycles_wh": 14,
+        "estimated_cycles_bh": 12,
+        "estimated_cycles_wh": 10,
         "code_size_bytes": 40,
         "unique_opcodes": 7
       },
@@ -409,8 +409,8 @@
         "load_count": 1,
         "store_count": 1,
         "cc_stack_ops": 0,
-        "estimated_cycles_bh": 6,
-        "estimated_cycles_wh": 8,
+        "estimated_cycles_bh": 8,
+        "estimated_cycles_wh": 6,
         "code_size_bytes": 24,
         "unique_opcodes": 5
       },
@@ -420,7 +420,7 @@
         "nop_elimination": 2,
         "mad_gain": 2,
         "cycle_reduction_bh": 4,
-        "cycle_reduction_bh_pct": 40.0
+        "cycle_reduction_bh_pct": 33.3
       }
     },
     {
@@ -439,7 +439,7 @@
         "store_count": 2,
         "cc_stack_ops": 0,
         "estimated_cycles_bh": 10,
-        "estimated_cycles_wh": 12,
+        "estimated_cycles_wh": 10,
         "code_size_bytes": 40,
         "unique_opcodes": 4
       },
@@ -455,7 +455,7 @@
         "store_count": 2,
         "cc_stack_ops": 0,
         "estimated_cycles_bh": 8,
-        "estimated_cycles_wh": 10,
+        "estimated_cycles_wh": 8,
         "code_size_bytes": 32,
         "unique_opcodes": 3
       },
@@ -484,7 +484,7 @@
         "store_count": 4,
         "cc_stack_ops": 0,
         "estimated_cycles_bh": 20,
-        "estimated_cycles_wh": 28,
+        "estimated_cycles_wh": 20,
         "code_size_bytes": 80,
         "unique_opcodes": 5
       },
@@ -500,7 +500,7 @@
         "store_count": 4,
         "cc_stack_ops": 0,
         "estimated_cycles_bh": 12,
-        "estimated_cycles_wh": 16,
+        "estimated_cycles_wh": 12,
         "code_size_bytes": 48,
         "unique_opcodes": 3
       },
@@ -529,7 +529,7 @@
         "store_count": 0,
         "cc_stack_ops": 0,
         "estimated_cycles_bh": 6,
-        "estimated_cycles_wh": 7,
+        "estimated_cycles_wh": 6,
         "code_size_bytes": 24,
         "unique_opcodes": 4
       },
@@ -574,7 +574,7 @@
         "store_count": 0,
         "cc_stack_ops": 0,
         "estimated_cycles_bh": 5,
-        "estimated_cycles_wh": 6,
+        "estimated_cycles_wh": 5,
         "code_size_bytes": 20,
         "unique_opcodes": 4
       },

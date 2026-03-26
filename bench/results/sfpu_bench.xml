@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="SFPU Codegen Benchmarks" timestamp="2026-03-26T00:39:10.319873+00:00" tests="13" failures="0">
-  <testsuite name="sfpu.comparison" tests="2" failures="0" timestamp="2026-03-26T00:39:10.319898+00:00">
+<testsuites name="SFPU Codegen Benchmarks" timestamp="2026-03-26T00:50:08.742641+00:00" tests="13" failures="0">
+  <testsuite name="sfpu.comparison" tests="2" failures="0" timestamp="2026-03-26T00:50:08.742667+00:00">
     <testcase name="bh_comparison_gt" classname="sfpu.comparison" time="0">
       <properties>
         <property name="gcc_instructions" value="6" />
@@ -40,7 +40,7 @@ GH-Q-005: SFPGT (3 insns vs 6)</system-out>
 GH-Q-005: SFPLE</system-out>
     </testcase>
   </testsuite>
-  <testsuite name="sfpu.ml_kernels" tests="9" failures="0" timestamp="2026-03-26T00:39:10.319938+00:00">
+  <testsuite name="sfpu.ml_kernels" tests="9" failures="0" timestamp="2026-03-26T00:50:08.742707+00:00">
     <testcase name="exp_horner_2step" classname="sfpu.ml_kernels" time="0">
       <properties>
         <property name="gcc_instructions" value="10" />
@@ -51,9 +51,9 @@ GH-Q-005: SFPLE</system-out>
         <property name="llvm_nops" value="0" />
         <property name="nop_elimination" value="2" />
         <property name="mad_gain" value="2" />
-        <property name="gcc_cycles_bh" value="10" />
-        <property name="llvm_cycles_bh" value="6" />
-        <property name="cycle_reduction_bh_pct" value="40.0" />
+        <property name="gcc_cycles_bh" value="12" />
+        <property name="llvm_cycles_bh" value="8" />
+        <property name="cycle_reduction_bh_pct" value="33.3" />
         <property name="gcc_code_bytes" value="40" />
         <property name="llvm_code_bytes" value="24" />
       </properties>
@@ -70,9 +70,9 @@ GH-Q-002 (FMA), GH-CC-008 (BH NOPs), GH-Q-006 (scheduling)</system-out>
         <property name="llvm_nops" value="0" />
         <property name="nop_elimination" value="3" />
         <property name="mad_gain" value="2" />
-        <property name="gcc_cycles_bh" value="18" />
-        <property name="llvm_cycles_bh" value="12" />
-        <property name="cycle_reduction_bh_pct" value="33.3" />
+        <property name="gcc_cycles_bh" value="19" />
+        <property name="llvm_cycles_bh" value="13" />
+        <property name="cycle_reduction_bh_pct" value="31.6" />
         <property name="gcc_code_bytes" value="72" />
         <property name="llvm_code_bytes" value="48" />
       </properties>
@@ -109,8 +109,8 @@ LUT path, BH NOP elimination</system-out>
         <property name="nop_elimination" value="2" />
         <property name="mad_gain" value="0" />
         <property name="gcc_cycles_bh" value="6" />
-        <property name="llvm_cycles_bh" value="4" />
-        <property name="cycle_reduction_bh_pct" value="33.3" />
+        <property name="llvm_cycles_bh" value="5" />
+        <property name="cycle_reduction_bh_pct" value="16.7" />
         <property name="gcc_code_bytes" value="24" />
         <property name="llvm_code_bytes" value="16" />
       </properties>
@@ -128,8 +128,8 @@ LUTFP32 path, BH NOP elimination, SFPADDI immediate</system-out>
         <property name="nop_elimination" value="3" />
         <property name="mad_gain" value="1" />
         <property name="gcc_cycles_bh" value="8" />
-        <property name="llvm_cycles_bh" value="5" />
-        <property name="cycle_reduction_bh_pct" value="37.5" />
+        <property name="llvm_cycles_bh" value="7" />
+        <property name="cycle_reduction_bh_pct" value="12.5" />
         <property name="gcc_code_bytes" value="32" />
         <property name="llvm_code_bytes" value="20" />
       </properties>
@@ -146,9 +146,9 @@ MAD combining, scheduler interleaving MUL+LUTFP32</system-out>
         <property name="llvm_nops" value="0" />
         <property name="nop_elimination" value="4" />
         <property name="mad_gain" value="4" />
-        <property name="gcc_cycles_bh" value="13" />
-        <property name="llvm_cycles_bh" value="7" />
-        <property name="cycle_reduction_bh_pct" value="46.2" />
+        <property name="gcc_cycles_bh" value="15" />
+        <property name="llvm_cycles_bh" value="11" />
+        <property name="cycle_reduction_bh_pct" value="26.7" />
         <property name="gcc_code_bytes" value="52" />
         <property name="llvm_code_bytes" value="28" />
       </properties>
@@ -184,9 +184,9 @@ MAD combining, BH NOP elimination, predication</system-out>
         <property name="llvm_nops" value="0" />
         <property name="nop_elimination" value="4" />
         <property name="mad_gain" value="4" />
-        <property name="gcc_cycles_bh" value="18" />
-        <property name="llvm_cycles_bh" value="10" />
-        <property name="cycle_reduction_bh_pct" value="44.4" />
+        <property name="gcc_cycles_bh" value="20" />
+        <property name="llvm_cycles_bh" value="12" />
+        <property name="cycle_reduction_bh_pct" value="40.0" />
         <property name="gcc_code_bytes" value="72" />
         <property name="llvm_code_bytes" value="40" />
       </properties>
@@ -203,9 +203,9 @@ MAD combining throughout, BH NOP elimination, predication</system-out>
         <property name="llvm_nops" value="0" />
         <property name="nop_elimination" value="2" />
         <property name="mad_gain" value="2" />
-        <property name="gcc_cycles_bh" value="10" />
-        <property name="llvm_cycles_bh" value="6" />
-        <property name="cycle_reduction_bh_pct" value="40.0" />
+        <property name="gcc_cycles_bh" value="12" />
+        <property name="llvm_cycles_bh" value="8" />
+        <property name="cycle_reduction_bh_pct" value="33.3" />
         <property name="gcc_code_bytes" value="40" />
         <property name="llvm_code_bytes" value="24" />
       </properties>
@@ -213,7 +213,7 @@ MAD combining throughout, BH NOP elimination, predication</system-out>
 </system-out>
     </testcase>
   </testsuite>
-  <testsuite name="sfpu.scheduling" tests="2" failures="0" timestamp="2026-03-26T00:39:10.320023+00:00">
+  <testsuite name="sfpu.scheduling" tests="2" failures="0" timestamp="2026-03-26T00:50:08.742801+00:00">
     <testcase name="two_independent_muls" classname="sfpu.scheduling" time="0">
       <properties>
         <property name="gcc_instructions" value="10" />
