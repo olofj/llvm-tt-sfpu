@@ -31,9 +31,4 @@ def FeatureVendorXttSFPUWH
                        "'XttSFPU-WH' (Tenstorrent SFPU Wormhole extensions)",
                        [FeatureVendorXttSFPU]>;
 
-// Processor definitions for common targets
-def : ProcessorModel<"tensix-bh", TensixBHModel,
-    [FeatureVendorXttSFPUBH]>;
-
-def : ProcessorModel<"tensix-wh", TensixWHModel,
-    [FeatureVendorXttSFPUWH]>;
+// Processor definitions are in RISCVSchedXttSFPU.td (needs scheduling model first).
