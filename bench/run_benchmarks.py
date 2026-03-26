@@ -29,6 +29,13 @@ sys.path.insert(0, os.path.dirname(__file__))
 from sfpu_kernels import Kernel, get_kernels, get_categories
 from cycle_model import simulate_cycles
 
+# Try to import expanded LLK kernels
+try:
+    from llk_kernels import get_all_llk_kernels, get_llk_categories
+    HAS_LLK = True
+except ImportError:
+    HAS_LLK = False
+
 # ============================================================================
 # SFPU Cycle Model
 # ============================================================================
@@ -365,16 +372,27 @@ def main():
     parser.add_argument("--output", default=".", help="Output directory")
     parser.add_argument("--list-categories", action="store_true",
                         help="List available categories and exit")
+    parser.add_argument("--all-llk", action="store_true",
+                        help="Use expanded LLK kernel set (all 40+ kernels)")
     args = parser.parse_args()
 
     if args.list_categories:
-        for cat in get_categories():
-            kernels = get_kernels(cat)
-            print(f"  {cat}: {len(kernels)} kernels")
+        if args.all_llk and HAS_LLK:
+            for cat in get_llk_categories():
+                kernels = [k for k in get_all_llk_kernels() if k.category == cat]
+                print(f"  {cat}: {len(kernels)} kernels")
+        else:
+            for cat in get_categories():
+                kernels = get_kernels(cat)
+                print(f"  {cat}: {len(kernels)} kernels")
         return
 
     # Run benchmarks
-    kernels = get_kernels(args.category)
+    if args.all_llk and HAS_LLK:
+        all_kernels = get_all_llk_kernels()
+        kernels = [k for k in all_kernels if args.category is None or k.category == args.category]
+    else:
+        kernels = get_kernels(args.category)
     if not kernels:
         print(f"No kernels found for category '{args.category}'", file=sys.stderr)
         sys.exit(1)
