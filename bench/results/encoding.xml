@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="SFPU Encoding Validation" timestamp="2026-03-26T00:39:10.263715+00:00" tests="2" failures="0">
+  <testsuite name="sfpu.encoding" tests="2">
+    <testcase name="bh_wh_cross_validation" classname="sfpu.encoding">
+      <properties>
+        <property name="test_count" value="46" />
+      </properties>
+    </testcase>
+    <testcase name="exhaustive_opcodes" classname="sfpu.encoding">
+      <properties>
+        <property name="test_count" value="188" />
+      </properties>
+    </testcase>
+  </testsuite>
+</testsuites>
