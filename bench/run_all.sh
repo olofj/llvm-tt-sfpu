@@ -92,7 +92,7 @@ echo "  Output: $RESULTS_DIR/encoding.xml"
 echo ""
 echo "=== Phase 2: Codegen Benchmarks ==="
 
-python3 "$PROJECT_DIR/bench/run_benchmarks.py" --output="$RESULTS_DIR" 2>&1
+python3 "$PROJECT_DIR/bench/run_benchmarks.py" --all-llk --output="$RESULTS_DIR" 2>&1
 BENCH_EXIT=$?
 
 if [ "$BENCH_EXIT" -ne 0 ]; then
@@ -107,7 +107,9 @@ echo "=========================================="
 
 TOTAL_ENCODING=$((46 + EXHAUSTIVE_TOTAL))
 echo "  Encoding tests: $TOTAL_ENCODING (BH/WH: 46, Exhaustive: $EXHAUSTIVE_TOTAL)"
-echo "  Codegen benchmarks: 13 kernels"
+
+KERNEL_COUNT=$(python3 -c "import json; print(json.load(open('$RESULTS_DIR/metrics.json'))['summary']['total_kernels'])" 2>/dev/null || echo "?")
+echo "  Codegen benchmarks: $KERNEL_COUNT kernels"
 
 BENCH_SUMMARY=$(python3 -c "import json; d=json.load(open('$RESULTS_DIR/metrics.json')); s=d['summary']; print(f\"  Instruction reduction: {s['instruction_reduction_pct']}%\"); print(f\"  NOPs eliminated: {s['nops_eliminated']}\")")
 echo "$BENCH_SUMMARY"

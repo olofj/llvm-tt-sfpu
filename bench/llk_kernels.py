@@ -553,6 +553,217 @@ K("softmax_row", "ml_activations",
   source="(composite)")
 
 
+# ============================================================================
+# Remaining LLK kernels — composite / complex / infrastructure
+# ============================================================================
+
+K("activations_softplus", "ml_activations",
+  "Softplus: log(1 + exp(x)), uses exp + log composition",
+  gcc=[load(0),
+       # exp(x) path (simplified Horner)
+       mul(1, 0, 8, 9), nop(), add(1, 10, 1, 10), nop(),
+       # log(1+exp) path
+       iadd(2, 1, 0, 0),  # 1 + exp(x) via integer add on FP
+       exexp(3, 2), exman(4, 2), setexp(4, 4, 127), lut(4), nop(),
+       mul(5, 3, 8, 9), nop(), add(0, 10, 5, 4), nop(),
+       store(0)],
+  llvm=[load(0),
+        mad(1, 0, 8, 10),  # exp approx
+        iadd(2, 1, 0, 0),
+        exexp(3, 2), exman(4, 2), setexp(4, 4, 127), lut(4),
+        mad(0, 3, 8, 4),
+        store(0)],
+  notes="Composite exp+log, MAD combining", source="ckernel_sfpu_activations.h")
+
+K("cdf_approx", "ml_math",
+  "Cumulative distribution function (Horner polynomial)",
+  gcc=[load(0),
+       *gcc_vif(0, 4),  # v_if(x >= 0)
+       *gcc_mul_add(1, 0, 8, 9),  # Horner steps
+       *gcc_mul_add(1, 1, 0, 9),
+       *gcc_mul_add(1, 1, 0, 9),
+       popc(), store(1)],
+  llvm=[load(0),
+        pushc(), setcc(0, 4),
+        mad(1, 0, 8, 9), mad(1, 1, 0, 9), mad(1, 1, 0, 9),
+        popc(), store(1)],
+  notes="3x MAD combining in Horner", source="ckernel_sfpu_cdf.h")
+
+K("binary_power", "ml_math",
+  "Power function: base^exp via log+mul+exp",
+  gcc=[load(0), load(1, 16),  # base, exponent
+       # log(base)
+       exexp(2, 0), exman(3, 0), setexp(3, 3, 127), lut(3), nop(),
+       mul(4, 2, 8, 9), nop(), add(4, 10, 4, 3), nop(),
+       # log(base) * exp
+       mul(4, 4, 1, 9), nop(),
+       # exp(result)
+       mul(5, 4, 8, 9), nop(), add(5, 10, 5, 10), nop(),
+       store(5)],
+  llvm=[load(0), load(1, 16),
+        exexp(2, 0), exman(3, 0), setexp(3, 3, 127), lut(3),
+        mad(4, 2, 8, 3),     # log combine
+        mul(4, 4, 1, 9),     # * exponent
+        mad(5, 4, 8, 10),    # exp combine
+        store(5)],
+  notes="Composite log+mul+exp, multiple MAD combining",
+  source="ckernel_sfpu_binary.h")
+
+K("ema_step", "ml_math",
+  "Exponential moving average: new = alpha*input + (1-alpha)*old",
+  gcc=[load(0), load(1, 16),  # input, old
+       mul(2, 0, 3, 9), nop(),  # alpha * input (L3 = alpha)
+       mul(3, 1, 4, 9), nop(),  # (1-alpha) * old (L4 = 1-alpha)
+       add(0, 10, 2, 3), nop(),
+       store(0)],
+  llvm=[load(0), load(1, 16),
+        mul(2, 0, 3, 9),        # alpha * input
+        mul(3, 1, 4, 9),        # (1-alpha) * old (interleaved)
+        mad(0, 10, 2, 3),       # combine
+        store(0)],
+  notes="Interleaved MULs + MAD combining", source="ckernel_sfpu_ema.h")
+
+K("is_fp16_zero", "comparison",
+  "Check if FP16 value is zero",
+  gcc=[load(0), iadd(0, 0, "0x3800", 0),  # add bias
+       setcc(0, 6),  # EQ0
+       mov(1, 9),
+       *gcc_vif(0, 6), mov(1, 10), popc(),
+       store(1)],
+  llvm=[load(0), iadd(0, 0, "0x3800", 0),
+        setcc(0, 6), mov(1, 9),
+        pushc(), setcc(0, 6), mov(1, 10), popc(),
+        store(1)],
+  source="ckernel_sfpu_is_fp16_zero.h")
+
+K("rsqrt_compat_approx", "ml_math",
+  "RSqrt compatibility (integer approximation for GS compat)",
+  gcc=[load(0),
+       # Integer magic number approximation
+       shft(1, 0, 1, 0), iadd(1, 1, 0, 16),  # shift + sub
+       *gcc_vif(0, 2),  # v_if(x != 0)
+       store(1),
+       popc()],
+  llvm=[load(0),
+        shft(1, 0, 1, 0), iadd(1, 1, 0, 16),
+        pushc(), setcc(0, 2),
+        store(1),
+        popc()],
+  source="ckernel_sfpu_rsqrt_compat.h")
+
+K("sin_maclaurin", "ml_math",
+  "Sine via Maclaurin series (5-term polynomial)",
+  gcc=[load(0),
+       mul(1, 0, 0, 9), nop(),   # x^2
+       mul(2, 1, 0, 9), nop(),   # x^3
+       *gcc_mul_add(3, 2, 8, 0),  # Horner terms
+       *gcc_mul_add(3, 3, 1, 0),
+       store(3)],
+  llvm=[load(0),
+        mul(1, 0, 0, 9),          # x^2
+        mul(2, 1, 0, 9),          # x^3 (interleaved)
+        mad(3, 2, 8, 0),
+        mad(3, 3, 1, 0),
+        store(3)],
+  notes="Interleaved MUL + MAD combining", source="ckernel_sfpu_trigonometry.h")
+
+K("cos_maclaurin", "ml_math",
+  "Cosine via Maclaurin series",
+  gcc=[load(0),
+       mul(1, 0, 0, 9), nop(),   # x^2
+       *gcc_mul_add(2, 1, 8, 10),  # 1 + a2*x^2
+       *gcc_mul_add(2, 2, 1, 0),   # prev * x^2 + a4
+       store(2)],
+  llvm=[load(0),
+        mul(1, 0, 0, 9),
+        mad(2, 1, 8, 10),
+        mad(2, 2, 1, 0),
+        store(2)],
+  source="ckernel_sfpu_trigonometry.h")
+
+K("topk_compare_swap", "reduction",
+  "TopK: compare-and-swap for bitonic sort",
+  gcc=[load(0), load(1, 16),
+       swap(0, 1, 9), nop(),   # SFPSWAP max (static NOP)
+       store(0), store(1, 16)],
+  llvm=[load(0), load(1, 16),
+        swap(0, 1, 9), nop(),  # Static NOP required even on BH
+        store(0), store(1, 16)],
+  notes="SFPSWAP min/max for sorting network", source="ckernel_sfpu_topk.h")
+
+K("welfords_mean_update", "reduction",
+  "Welford's online mean update: mean += (x - mean) / n",
+  gcc=[load(0), load(1, 16),  # x, mean
+       # x - mean
+       mul(2, 1, 11, 9), nop(), add(2, 10, 0, 2), nop(),
+       # / n (via reciprocal)
+       mul(2, 2, 3, 9), nop(),   # * (1/n) precomputed in L3
+       # mean + delta/n
+       add(0, 10, 1, 2), nop(),
+       store(0)],
+  llvm=[load(0), load(1, 16),
+        mad(2, 1, 11, 0, 1),     # x - mean via COMPL_A negation fold
+        mul(2, 2, 3, 9),         # * (1/n)
+        mad(0, 10, 1, 2),
+        store(0)],
+  notes="Negation fold + MAD combining", source="ckernel_sfpu_welfords.h")
+
+K("reduce_custom_add", "reduction",
+  "Custom reduction: add across elements",
+  gcc=[load(0), load(1, 16),
+       add(0, 10, 0, 1), nop(),
+       store(0)],
+  llvm=[load(0), load(1, 16),
+        mad(0, 10, 0, 1),
+        store(0)],
+  notes="MAD combining for add", source="ckernel_sfpu_reduce_custom.h")
+
+K("reshuffle_rows_scatter", "data_movement",
+  "Scatter-add for embedding gradient accumulation",
+  gcc=[load(0), load(1, 16),  # gradient, mask
+       iadd(2, 1, 0, 0),      # index calc
+       add(0, 10, 0, 2), nop(),
+       store(0)],
+  llvm=[load(0), load(1, 16),
+        iadd(2, 1, 0, 0),
+        mad(0, 10, 0, 2),
+        store(0)],
+  source="ckernel_sfpu_reshuffle_rows.h")
+
+K("max_pool_indices", "reduction",
+  "Max pooling with index tracking via SFPSWAP",
+  gcc=[load(0), load(1, 16),  # values, indices
+       swap(0, 1, 1), nop(),   # SFPSWAP min mode (track index)
+       store(0), store(1, 16)],
+  llvm=[load(0), load(1, 16),
+        swap(0, 1, 1), nop(),  # Static NOP required
+        store(0), store(1, 16)],
+  source="ckernel_sfpu_max_pool_indices.h")
+
+K("add_top_row", "data_movement",
+  "Add top row of tile to all rows",
+  gcc=[load(0), load(1, 16),  # top_row, current
+       add(0, 10, 0, 1), nop(),
+       store(0)],
+  llvm=[load(0), load(1, 16),
+        mad(0, 10, 0, 1),
+        store(0)],
+  source="ckernel_sfpu_add_top_row.h")
+
+# load_config and converter are infrastructure, not compute kernels
+K("load_config_imm32", "infrastructure",
+  "Load 32-bit immediate into LReg pair (init helper)",
+  gcc=[loadi(0, 2, "0x3F80"), loadi(0, 2, "0xBF00")],
+  llvm=[loadi(0, 2, "0x3F80"), loadi(0, 2, "0xBF00")],
+  source="ckernel_sfpu_load_config.h")
+
+K("converter_uint_to_float", "infrastructure",
+  "Convert uint to float via SFPCAST",
+  gcc=[load(0), cast(0, 0, 5), store(0)],  # INT32_TO_SM32 mode
+  llvm=[load(0), cast(0, 0, 5), store(0)],
+  source="ckernel_sfpu_converter.h")
+
+
 def get_all_llk_kernels():
     """Return all LLK kernels."""
     return ALL_LLK_KERNELS

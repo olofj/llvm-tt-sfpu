@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="SFPU Codegen Benchmarks" timestamp="2026-03-26T00:56:21.158955+00:00" tests="49" failures="0">
-  <testsuite name="sfpu.bitwise" tests="4" failures="0" timestamp="2026-03-26T00:56:21.158997+00:00">
+<testsuites name="SFPU Codegen Benchmarks" timestamp="2026-03-26T00:59:20.611141+00:00" tests="65" failures="0">
+  <testsuite name="sfpu.bitwise" tests="4" failures="0" timestamp="2026-03-26T00:59:20.611174+00:00">
     <testcase name="binary_and" classname="sfpu.bitwise" time="0">
       <properties>
         <property name="gcc_instructions" value="4" />
@@ -78,7 +78,7 @@
 </system-out>
     </testcase>
   </testsuite>
-  <testsuite name="sfpu.comparison" tests="6" failures="0" timestamp="2026-03-26T00:56:21.159073+00:00">
+  <testsuite name="sfpu.comparison" tests="7" failures="0" timestamp="2026-03-26T00:59:20.611233+00:00">
     <testcase name="comp_gt_bh" classname="sfpu.comparison" time="0">
       <properties>
         <property name="gcc_instructions" value="6" />
@@ -193,8 +193,27 @@ GH-Q-005: 50% reduction</system-out>
       <system-out>Sign function: -1, 0, or +1
 </system-out>
     </testcase>
+    <testcase name="is_fp16_zero" classname="sfpu.comparison" time="0">
+      <properties>
+        <property name="gcc_instructions" value="9" />
+        <property name="llvm_instructions" value="9" />
+        <property name="instruction_reduction" value="0" />
+        <property name="instruction_reduction_pct" value="0.0" />
+        <property name="gcc_nops" value="0" />
+        <property name="llvm_nops" value="0" />
+        <property name="nop_elimination" value="0" />
+        <property name="mad_gain" value="0" />
+        <property name="gcc_cycles_bh" value="9" />
+        <property name="llvm_cycles_bh" value="9" />
+        <property name="cycle_reduction_bh_pct" value="0.0" />
+        <property name="gcc_code_bytes" value="36" />
+        <property name="llvm_code_bytes" value="36" />
+      </properties>
+      <system-out>Check if FP16 value is zero
+</system-out>
+    </testcase>
   </testsuite>
-  <testsuite name="sfpu.data_movement" tests="6" failures="0" timestamp="2026-03-26T00:56:21.159118+00:00">
+  <testsuite name="sfpu.data_movement" tests="8" failures="0" timestamp="2026-03-26T00:59:20.611286+00:00">
     <testcase name="abs" classname="sfpu.data_movement" time="0">
       <properties>
         <property name="gcc_instructions" value="3" />
@@ -309,8 +328,86 @@ LLVM uses SFPSETSGN instead of MUL by -1</system-out>
       <system-out>Cast FP32 → FP16A
 </system-out>
     </testcase>
+    <testcase name="reshuffle_rows_scatter" classname="sfpu.data_movement" time="0">
+      <properties>
+        <property name="gcc_instructions" value="6" />
+        <property name="llvm_instructions" value="5" />
+        <property name="instruction_reduction" value="1" />
+        <property name="instruction_reduction_pct" value="16.7" />
+        <property name="gcc_nops" value="1" />
+        <property name="llvm_nops" value="0" />
+        <property name="nop_elimination" value="1" />
+        <property name="mad_gain" value="1" />
+        <property name="gcc_cycles_bh" value="6" />
+        <property name="llvm_cycles_bh" value="6" />
+        <property name="cycle_reduction_bh_pct" value="0.0" />
+        <property name="gcc_code_bytes" value="24" />
+        <property name="llvm_code_bytes" value="20" />
+      </properties>
+      <system-out>Scatter-add for embedding gradient accumulation
+</system-out>
+    </testcase>
+    <testcase name="add_top_row" classname="sfpu.data_movement" time="0">
+      <properties>
+        <property name="gcc_instructions" value="5" />
+        <property name="llvm_instructions" value="4" />
+        <property name="instruction_reduction" value="1" />
+        <property name="instruction_reduction_pct" value="20.0" />
+        <property name="gcc_nops" value="1" />
+        <property name="llvm_nops" value="0" />
+        <property name="nop_elimination" value="1" />
+        <property name="mad_gain" value="1" />
+        <property name="gcc_cycles_bh" value="5" />
+        <property name="llvm_cycles_bh" value="5" />
+        <property name="cycle_reduction_bh_pct" value="0.0" />
+        <property name="gcc_code_bytes" value="20" />
+        <property name="llvm_code_bytes" value="16" />
+      </properties>
+      <system-out>Add top row of tile to all rows
+</system-out>
+    </testcase>
   </testsuite>
-  <testsuite name="sfpu.integer_ops" tests="4" failures="0" timestamp="2026-03-26T00:56:21.159155+00:00">
+  <testsuite name="sfpu.infrastructure" tests="2" failures="0" timestamp="2026-03-26T00:59:20.611552+00:00">
+    <testcase name="load_config_imm32" classname="sfpu.infrastructure" time="0">
+      <properties>
+        <property name="gcc_instructions" value="2" />
+        <property name="llvm_instructions" value="2" />
+        <property name="instruction_reduction" value="0" />
+        <property name="instruction_reduction_pct" value="0.0" />
+        <property name="gcc_nops" value="0" />
+        <property name="llvm_nops" value="0" />
+        <property name="nop_elimination" value="0" />
+        <property name="mad_gain" value="0" />
+        <property name="gcc_cycles_bh" value="2" />
+        <property name="llvm_cycles_bh" value="2" />
+        <property name="cycle_reduction_bh_pct" value="0.0" />
+        <property name="gcc_code_bytes" value="8" />
+        <property name="llvm_code_bytes" value="8" />
+      </properties>
+      <system-out>Load 32-bit immediate into LReg pair (init helper)
+</system-out>
+    </testcase>
+    <testcase name="converter_uint_to_float" classname="sfpu.infrastructure" time="0">
+      <properties>
+        <property name="gcc_instructions" value="3" />
+        <property name="llvm_instructions" value="3" />
+        <property name="instruction_reduction" value="0" />
+        <property name="instruction_reduction_pct" value="0.0" />
+        <property name="gcc_nops" value="0" />
+        <property name="llvm_nops" value="0" />
+        <property name="nop_elimination" value="0" />
+        <property name="mad_gain" value="0" />
+        <property name="gcc_cycles_bh" value="3" />
+        <property name="llvm_cycles_bh" value="3" />
+        <property name="cycle_reduction_bh_pct" value="0.0" />
+        <property name="gcc_code_bytes" value="12" />
+        <property name="llvm_code_bytes" value="12" />
+      </properties>
+      <system-out>Convert uint to float via SFPCAST
+</system-out>
+    </testcase>
+  </testsuite>
+  <testsuite name="sfpu.integer_ops" tests="4" failures="0" timestamp="2026-03-26T00:59:20.611572+00:00">
     <testcase name="add_int" classname="sfpu.integer_ops" time="0">
       <properties>
         <property name="gcc_instructions" value="4" />
@@ -388,7 +485,7 @@ BH NOP elimination after MUL24</system-out>
 </system-out>
     </testcase>
   </testsuite>
-  <testsuite name="sfpu.misc" tests="6" failures="0" timestamp="2026-03-26T00:56:21.159180+00:00">
+  <testsuite name="sfpu.misc" tests="6" failures="0" timestamp="2026-03-26T00:59:20.611607+00:00">
     <testcase name="dropout" classname="sfpu.misc" time="0">
       <properties>
         <property name="gcc_instructions" value="3" />
@@ -504,7 +601,7 @@ BH NOP elimination after MUL24</system-out>
 </system-out>
     </testcase>
   </testsuite>
-  <testsuite name="sfpu.ml_activations" tests="11" failures="0" timestamp="2026-03-26T00:56:21.159450+00:00">
+  <testsuite name="sfpu.ml_activations" tests="12" failures="0" timestamp="2026-03-26T00:59:20.611652+00:00">
     <testcase name="exp_horner" classname="sfpu.ml_activations" time="0">
       <properties>
         <property name="gcc_instructions" value="10" />
@@ -714,8 +811,27 @@ MAD combining + negation fold via COMPL_A</system-out>
       <system-out>Softmax per-row: normalize + exp + store
 </system-out>
     </testcase>
+    <testcase name="activations_softplus" classname="sfpu.ml_activations" time="0">
+      <properties>
+        <property name="gcc_instructions" value="16" />
+        <property name="llvm_instructions" value="9" />
+        <property name="instruction_reduction" value="7" />
+        <property name="instruction_reduction_pct" value="43.8" />
+        <property name="gcc_nops" value="5" />
+        <property name="llvm_nops" value="0" />
+        <property name="nop_elimination" value="5" />
+        <property name="mad_gain" value="2" />
+        <property name="gcc_cycles_bh" value="16" />
+        <property name="llvm_cycles_bh" value="11" />
+        <property name="cycle_reduction_bh_pct" value="31.2" />
+        <property name="gcc_code_bytes" value="64" />
+        <property name="llvm_code_bytes" value="36" />
+      </properties>
+      <system-out>Softplus: log(1 + exp(x)), uses exp + log composition
+Composite exp+log, MAD combining</system-out>
+    </testcase>
   </testsuite>
-  <testsuite name="sfpu.ml_math" tests="8" failures="0" timestamp="2026-03-26T00:56:21.159558+00:00">
+  <testsuite name="sfpu.ml_math" tests="14" failures="0" timestamp="2026-03-26T00:59:20.611742+00:00">
     <testcase name="recip_nr1" classname="sfpu.ml_math" time="0">
       <properties>
         <property name="gcc_instructions" value="12" />
@@ -868,8 +984,122 @@ BH NOP elimination</system-out>
       <system-out>4th-order polynomial via Horner scheme
 4x MAD combining</system-out>
     </testcase>
+    <testcase name="cdf_approx" classname="sfpu.ml_math" time="0">
+      <properties>
+        <property name="gcc_instructions" value="14" />
+        <property name="llvm_instructions" value="8" />
+        <property name="instruction_reduction" value="6" />
+        <property name="instruction_reduction_pct" value="42.9" />
+        <property name="gcc_nops" value="3" />
+        <property name="llvm_nops" value="0" />
+        <property name="nop_elimination" value="3" />
+        <property name="mad_gain" value="3" />
+        <property name="gcc_cycles_bh" value="16" />
+        <property name="llvm_cycles_bh" value="10" />
+        <property name="cycle_reduction_bh_pct" value="37.5" />
+        <property name="gcc_code_bytes" value="56" />
+        <property name="llvm_code_bytes" value="32" />
+      </properties>
+      <system-out>Cumulative distribution function (Horner polynomial)
+3x MAD combining in Horner</system-out>
+    </testcase>
+    <testcase name="binary_power" classname="sfpu.ml_math" time="0">
+      <properties>
+        <property name="gcc_instructions" value="18" />
+        <property name="llvm_instructions" value="10" />
+        <property name="instruction_reduction" value="8" />
+        <property name="instruction_reduction_pct" value="44.4" />
+        <property name="gcc_nops" value="6" />
+        <property name="llvm_nops" value="0" />
+        <property name="nop_elimination" value="6" />
+        <property name="mad_gain" value="2" />
+        <property name="gcc_cycles_bh" value="18" />
+        <property name="llvm_cycles_bh" value="13" />
+        <property name="cycle_reduction_bh_pct" value="27.8" />
+        <property name="gcc_code_bytes" value="72" />
+        <property name="llvm_code_bytes" value="40" />
+      </properties>
+      <system-out>Power function: base^exp via log+mul+exp
+Composite log+mul+exp, multiple MAD combining</system-out>
+    </testcase>
+    <testcase name="ema_step" classname="sfpu.ml_math" time="0">
+      <properties>
+        <property name="gcc_instructions" value="9" />
+        <property name="llvm_instructions" value="6" />
+        <property name="instruction_reduction" value="3" />
+        <property name="instruction_reduction_pct" value="33.3" />
+        <property name="gcc_nops" value="3" />
+        <property name="llvm_nops" value="0" />
+        <property name="nop_elimination" value="3" />
+        <property name="mad_gain" value="1" />
+        <property name="gcc_cycles_bh" value="9" />
+        <property name="llvm_cycles_bh" value="8" />
+        <property name="cycle_reduction_bh_pct" value="11.1" />
+        <property name="gcc_code_bytes" value="36" />
+        <property name="llvm_code_bytes" value="24" />
+      </properties>
+      <system-out>Exponential moving average: new = alpha*input + (1-alpha)*old
+Interleaved MULs + MAD combining</system-out>
+    </testcase>
+    <testcase name="rsqrt_compat_approx" classname="sfpu.ml_math" time="0">
+      <properties>
+        <property name="gcc_instructions" value="7" />
+        <property name="llvm_instructions" value="7" />
+        <property name="instruction_reduction" value="0" />
+        <property name="instruction_reduction_pct" value="0.0" />
+        <property name="gcc_nops" value="0" />
+        <property name="llvm_nops" value="0" />
+        <property name="nop_elimination" value="0" />
+        <property name="mad_gain" value="0" />
+        <property name="gcc_cycles_bh" value="7" />
+        <property name="llvm_cycles_bh" value="7" />
+        <property name="cycle_reduction_bh_pct" value="0.0" />
+        <property name="gcc_code_bytes" value="28" />
+        <property name="llvm_code_bytes" value="28" />
+      </properties>
+      <system-out>RSqrt compatibility (integer approximation for GS compat)
+</system-out>
+    </testcase>
+    <testcase name="sin_maclaurin" classname="sfpu.ml_math" time="0">
+      <properties>
+        <property name="gcc_instructions" value="12" />
+        <property name="llvm_instructions" value="6" />
+        <property name="instruction_reduction" value="6" />
+        <property name="instruction_reduction_pct" value="50.0" />
+        <property name="gcc_nops" value="4" />
+        <property name="llvm_nops" value="0" />
+        <property name="nop_elimination" value="4" />
+        <property name="mad_gain" value="2" />
+        <property name="gcc_cycles_bh" value="14" />
+        <property name="llvm_cycles_bh" value="10" />
+        <property name="cycle_reduction_bh_pct" value="28.6" />
+        <property name="gcc_code_bytes" value="48" />
+        <property name="llvm_code_bytes" value="24" />
+      </properties>
+      <system-out>Sine via Maclaurin series (5-term polynomial)
+Interleaved MUL + MAD combining</system-out>
+    </testcase>
+    <testcase name="cos_maclaurin" classname="sfpu.ml_math" time="0">
+      <properties>
+        <property name="gcc_instructions" value="10" />
+        <property name="llvm_instructions" value="5" />
+        <property name="instruction_reduction" value="5" />
+        <property name="instruction_reduction_pct" value="50.0" />
+        <property name="gcc_nops" value="3" />
+        <property name="llvm_nops" value="0" />
+        <property name="nop_elimination" value="3" />
+        <property name="mad_gain" value="2" />
+        <property name="gcc_cycles_bh" value="12" />
+        <property name="llvm_cycles_bh" value="8" />
+        <property name="cycle_reduction_bh_pct" value="33.3" />
+        <property name="gcc_code_bytes" value="40" />
+        <property name="llvm_code_bytes" value="20" />
+      </properties>
+      <system-out>Cosine via Maclaurin series
+</system-out>
+    </testcase>
   </testsuite>
-  <testsuite name="sfpu.reduction" tests="2" failures="0" timestamp="2026-03-26T00:56:21.159619+00:00">
+  <testsuite name="sfpu.reduction" tests="6" failures="0" timestamp="2026-03-26T00:59:20.611848+00:00">
     <testcase name="reduce_max" classname="sfpu.reduction" time="0">
       <properties>
         <property name="gcc_instructions" value="5" />
@@ -908,8 +1138,84 @@ SFPSWAP requires static NOP on both BH and WH</system-out>
       <system-out>Cumulative sum (sequential reduction)
 MAD combining for add</system-out>
     </testcase>
+    <testcase name="topk_compare_swap" classname="sfpu.reduction" time="0">
+      <properties>
+        <property name="gcc_instructions" value="6" />
+        <property name="llvm_instructions" value="6" />
+        <property name="instruction_reduction" value="0" />
+        <property name="instruction_reduction_pct" value="0.0" />
+        <property name="gcc_nops" value="1" />
+        <property name="llvm_nops" value="1" />
+        <property name="nop_elimination" value="0" />
+        <property name="mad_gain" value="0" />
+        <property name="gcc_cycles_bh" value="6" />
+        <property name="llvm_cycles_bh" value="6" />
+        <property name="cycle_reduction_bh_pct" value="0.0" />
+        <property name="gcc_code_bytes" value="24" />
+        <property name="llvm_code_bytes" value="24" />
+      </properties>
+      <system-out>TopK: compare-and-swap for bitonic sort
+SFPSWAP min/max for sorting network</system-out>
+    </testcase>
+    <testcase name="welfords_mean_update" classname="sfpu.reduction" time="0">
+      <properties>
+        <property name="gcc_instructions" value="11" />
+        <property name="llvm_instructions" value="6" />
+        <property name="instruction_reduction" value="5" />
+        <property name="instruction_reduction_pct" value="45.5" />
+        <property name="gcc_nops" value="4" />
+        <property name="llvm_nops" value="0" />
+        <property name="nop_elimination" value="4" />
+        <property name="mad_gain" value="2" />
+        <property name="gcc_cycles_bh" value="11" />
+        <property name="llvm_cycles_bh" value="9" />
+        <property name="cycle_reduction_bh_pct" value="18.2" />
+        <property name="gcc_code_bytes" value="44" />
+        <property name="llvm_code_bytes" value="24" />
+      </properties>
+      <system-out>Welford's online mean update: mean += (x - mean) / n
+Negation fold + MAD combining</system-out>
+    </testcase>
+    <testcase name="reduce_custom_add" classname="sfpu.reduction" time="0">
+      <properties>
+        <property name="gcc_instructions" value="5" />
+        <property name="llvm_instructions" value="4" />
+        <property name="instruction_reduction" value="1" />
+        <property name="instruction_reduction_pct" value="20.0" />
+        <property name="gcc_nops" value="1" />
+        <property name="llvm_nops" value="0" />
+        <property name="nop_elimination" value="1" />
+        <property name="mad_gain" value="1" />
+        <property name="gcc_cycles_bh" value="5" />
+        <property name="llvm_cycles_bh" value="5" />
+        <property name="cycle_reduction_bh_pct" value="0.0" />
+        <property name="gcc_code_bytes" value="20" />
+        <property name="llvm_code_bytes" value="16" />
+      </properties>
+      <system-out>Custom reduction: add across elements
+MAD combining for add</system-out>
+    </testcase>
+    <testcase name="max_pool_indices" classname="sfpu.reduction" time="0">
+      <properties>
+        <property name="gcc_instructions" value="6" />
+        <property name="llvm_instructions" value="6" />
+        <property name="instruction_reduction" value="0" />
+        <property name="instruction_reduction_pct" value="0.0" />
+        <property name="gcc_nops" value="1" />
+        <property name="llvm_nops" value="1" />
+        <property name="nop_elimination" value="0" />
+        <property name="mad_gain" value="0" />
+        <property name="gcc_cycles_bh" value="6" />
+        <property name="llvm_cycles_bh" value="6" />
+        <property name="cycle_reduction_bh_pct" value="0.0" />
+        <property name="gcc_code_bytes" value="24" />
+        <property name="llvm_code_bytes" value="24" />
+      </properties>
+      <system-out>Max pooling with index tracking via SFPSWAP
+</system-out>
+    </testcase>
   </testsuite>
-  <testsuite name="sfpu.scheduling" tests="2" failures="0" timestamp="2026-03-26T00:56:21.159639+00:00">
+  <testsuite name="sfpu.scheduling" tests="2" failures="0" timestamp="2026-03-26T00:59:20.611895+00:00">
     <testcase name="two_independent_muls" classname="sfpu.scheduling" time="0">
       <properties>
         <property name="gcc_instructions" value="10" />
