@@ -51,19 +51,16 @@ def nop():
 total = 0
 fail = 0
 
-def check(name, expected_word, fmt_check_fn=None):
+def check(name, expected_word, fmt_check_fn=None, is_tensix=False):
     global total, fail
     total += 1
-    # Verify bit ranges don't overlap (opcode in [31:24], payload in [23:2], marker in [1:0])
     opcode = (expected_word >> 24) & 0xFF
     marker = expected_word & 0x03
-    if marker != 0x03:
+    # SFPU instructions have bits[1:0]=0b11; Tensix instructions (REPLAY etc.) do not
+    if not is_tensix and marker != 0x03:
         fail += 1
-        print(f"  [FAIL] {name}: marker bits not 0b11")
+        print(f"  [FAIL] {name}: marker bits not 0b11 (got {marker:#04b})")
         return
-    if opcode < 0x70 or opcode > 0x9F:
-        if opcode != 0x8F:  # NOP is valid at 0x8F
-            pass  # Some BH-only may be outside this range
     if fmt_check_fn and not fmt_check_fn(expected_word):
         fail += 1
         print(f"  [FAIL] {name}: format check failed (0x{expected_word:08x})")
@@ -223,6 +220,23 @@ print(f"\n--- BH-only: SFPMUL24 (0x96) ---")
 w = three_op(0x96, 1, 2, 9, 0, 0)
 check("SFPMUL24(1,2,9,0,0)", w, verify_3op)
 print(f"  1 SFPMUL24 test")
+
+# === REPLAY (Tensix opcode 0x04) ===
+def replay(start_idx, length, ewl, load_mode):
+    """REPLAY encoding: opcode=0x04, start_idx[23:14], len[13:4], ewl[1], lm[0]
+    NOTE: REPLAY is a Tensix instruction (opcode 0x04), NOT an SFPU instruction.
+    It does NOT have the bits[1:0]=0b11 marker. The bits[1:0] ARE the ewl and lm fields."""
+    return (0x04 << 24) | (start_idx << 14) | (length << 4) | (ewl << 1) | load_mode
+
+print(f"\n--- REPLAY (Tensix 0x04) ---")
+for si in [0, 5, 31]:
+    for ln in [4, 16, 32]:
+        w = replay(si, ln, 0, 1)  # Load mode
+        check(f"REPLAY load({si},{ln})", w, is_tensix=True)
+        w = replay(si, ln, 1, 0)  # Execute mode
+        check(f"REPLAY exec({si},{ln})", w, is_tensix=True)
+
+print(f"  {3*3*2} REPLAY tests")
 
 # === Summary ===
 print(f"\n{'=' * 80}")

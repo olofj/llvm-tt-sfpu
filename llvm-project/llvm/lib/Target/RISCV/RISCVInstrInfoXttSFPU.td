@@ -553,6 +553,40 @@ def SFPSHFT2 : SFPUUnaryReg<0x94, "sfpshft2">,
 def SFPLUTFP32 : SFPULutFP32<0x95, "sfplutfp32">,
                  Sched<[WriteSFPULUTFP32, ReadSFPUSrc]>;
 
+//--- REPLAY (Tensix opcode 0x04, not SFPU but used by SFPU optimization) ---
+// REPLAY: [31:24]0x04 | [23:14]start_idx | [13:4]len | [3:2]reserved |
+//         [1]execute_while_loading | [0]load_mode
+//
+// Validated against sfpu-ops-bh.h:
+//   TT_OP_BH(0x04, (start_idx << 14) + (len << 4) +
+//            (execute_while_loading << 1) + (load_mode << 0))
+
+def TTREPLAY : RVInstTensix<0x04,
+    (outs),
+    (ins uimm12_sfpu:$start_idx, uimm12_sfpu:$len,
+         uimm4_sfpu:$exec_while_load, uimm4_sfpu:$load_mode),
+    "replay",
+    "$start_idx, $len, $exec_while_load, $load_mode",
+    []> {
+  bits<10> start_idx;
+  bits<10> len;
+  bits<1> exec_while_load;
+  bits<1> load_mode;
+
+  let Inst{23-14} = start_idx;
+  let Inst{13-4}  = len;
+  let Inst{3-2}   = 0b00;
+  let Inst{1}     = exec_while_load;
+  let Inst{0}     = load_mode;
+
+  // Override the base class bits[1:0]=0b11 — REPLAY is a Tensix instruction,
+  // not in the RISC-V custom space
+  let Inst{1-0} = {exec_while_load, load_mode};
+
+  let Sched = [WriteSFPUNop];
+  let hasSideEffects = 1;
+}
+
 } // Predicates = [HasXttSFPU]
 
 //===----------------------------------------------------------------------===//
