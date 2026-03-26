@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="SFPU Codegen Benchmarks" timestamp="2026-03-26T00:59:20.611141+00:00" tests="65" failures="0">
-  <testsuite name="sfpu.bitwise" tests="4" failures="0" timestamp="2026-03-26T00:59:20.611174+00:00">
+<testsuites name="SFPU Codegen Benchmarks" timestamp="2026-03-26T01:00:32.847177+00:00" tests="65" failures="0">
+  <testsuite name="sfpu.bitwise" tests="4" failures="0" timestamp="2026-03-26T01:00:32.847211+00:00">
     <testcase name="binary_and" classname="sfpu.bitwise" time="0">
       <properties>
         <property name="gcc_instructions" value="4" />
@@ -78,7 +78,7 @@
 </system-out>
     </testcase>
   </testsuite>
-  <testsuite name="sfpu.comparison" tests="7" failures="0" timestamp="2026-03-26T00:59:20.611233+00:00">
+  <testsuite name="sfpu.comparison" tests="7" failures="0" timestamp="2026-03-26T01:00:32.847272+00:00">
     <testcase name="comp_gt_bh" classname="sfpu.comparison" time="0">
       <properties>
         <property name="gcc_instructions" value="6" />
@@ -213,7 +213,7 @@ GH-Q-005: 50% reduction</system-out>
 </system-out>
     </testcase>
   </testsuite>
-  <testsuite name="sfpu.data_movement" tests="8" failures="0" timestamp="2026-03-26T00:59:20.611286+00:00">
+  <testsuite name="sfpu.data_movement" tests="8" failures="0" timestamp="2026-03-26T01:00:32.847417+00:00">
     <testcase name="abs" classname="sfpu.data_movement" time="0">
       <properties>
         <property name="gcc_instructions" value="3" />
@@ -367,7 +367,7 @@ LLVM uses SFPSETSGN instead of MUL by -1</system-out>
 </system-out>
     </testcase>
   </testsuite>
-  <testsuite name="sfpu.infrastructure" tests="2" failures="0" timestamp="2026-03-26T00:59:20.611552+00:00">
+  <testsuite name="sfpu.infrastructure" tests="2" failures="0" timestamp="2026-03-26T01:00:32.847502+00:00">
     <testcase name="load_config_imm32" classname="sfpu.infrastructure" time="0">
       <properties>
         <property name="gcc_instructions" value="2" />
@@ -407,7 +407,7 @@ LLVM uses SFPSETSGN instead of MUL by -1</system-out>
 </system-out>
     </testcase>
   </testsuite>
-  <testsuite name="sfpu.integer_ops" tests="4" failures="0" timestamp="2026-03-26T00:59:20.611572+00:00">
+  <testsuite name="sfpu.integer_ops" tests="4" failures="0" timestamp="2026-03-26T01:00:32.847797+00:00">
     <testcase name="add_int" classname="sfpu.integer_ops" time="0">
       <properties>
         <property name="gcc_instructions" value="4" />
@@ -485,7 +485,7 @@ BH NOP elimination after MUL24</system-out>
 </system-out>
     </testcase>
   </testsuite>
-  <testsuite name="sfpu.misc" tests="6" failures="0" timestamp="2026-03-26T00:59:20.611607+00:00">
+  <testsuite name="sfpu.misc" tests="6" failures="0" timestamp="2026-03-26T01:00:32.847839+00:00">
     <testcase name="dropout" classname="sfpu.misc" time="0">
       <properties>
         <property name="gcc_instructions" value="3" />
@@ -601,7 +601,7 @@ BH NOP elimination after MUL24</system-out>
 </system-out>
     </testcase>
   </testsuite>
-  <testsuite name="sfpu.ml_activations" tests="12" failures="0" timestamp="2026-03-26T00:59:20.611652+00:00">
+  <testsuite name="sfpu.ml_activations" tests="12" failures="0" timestamp="2026-03-26T01:00:32.847893+00:00">
     <testcase name="exp_horner" classname="sfpu.ml_activations" time="0">
       <properties>
         <property name="gcc_instructions" value="10" />
@@ -831,7 +831,7 @@ MAD combining + negation fold via COMPL_A</system-out>
 Composite exp+log, MAD combining</system-out>
     </testcase>
   </testsuite>
-  <testsuite name="sfpu.ml_math" tests="14" failures="0" timestamp="2026-03-26T00:59:20.611742+00:00">
+  <testsuite name="sfpu.ml_math" tests="14" failures="0" timestamp="2026-03-26T01:00:32.848001+00:00">
     <testcase name="recip_nr1" classname="sfpu.ml_math" time="0">
       <properties>
         <property name="gcc_instructions" value="12" />
@@ -1099,7 +1099,7 @@ Interleaved MUL + MAD combining</system-out>
 </system-out>
     </testcase>
   </testsuite>
-  <testsuite name="sfpu.reduction" tests="6" failures="0" timestamp="2026-03-26T00:59:20.611848+00:00">
+  <testsuite name="sfpu.reduction" tests="6" failures="0" timestamp="2026-03-26T01:00:32.848123+00:00">
     <testcase name="reduce_max" classname="sfpu.reduction" time="0">
       <properties>
         <property name="gcc_instructions" value="5" />
@@ -1215,7 +1215,7 @@ MAD combining for add</system-out>
 </system-out>
     </testcase>
   </testsuite>
-  <testsuite name="sfpu.scheduling" tests="2" failures="0" timestamp="2026-03-26T00:59:20.611895+00:00">
+  <testsuite name="sfpu.scheduling" tests="2" failures="0" timestamp="2026-03-26T01:00:32.848179+00:00">
     <testcase name="two_independent_muls" classname="sfpu.scheduling" time="0">
       <properties>
         <property name="gcc_instructions" value="10" />
