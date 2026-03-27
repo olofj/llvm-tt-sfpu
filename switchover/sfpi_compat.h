@@ -21,25 +21,24 @@
 #ifdef __clang__
 
 /* ---- __xtt_vector type ---- */
+/* GCC's __xtt_vector is a compiler builtin type (XTT32SImode) that is
+ * distinct from unsigned int but implicitly convertible both ways.
+ *
+ * We provide __xtt_vector as a builtin type in clang (via RISCVVTypes.def)
+ * but the builtin type doesn't support implicit conversion to/from uint.
+ * Until we add Sema conversion rules, use the struct approach in C++ for
+ * the conversion semantics that sfpi.h requires. */
 #ifdef __cplusplus
-/* C++: distinct struct type that allows implicit conversion both ways.
- * KNOWN ISSUE: At -O2, LLVM's optimizer sees through the struct and
- * flattens __xtt_vector{val}.v to just val (unsigned int). This causes
- * vFloat assignment to go through the float constructor instead of the
- * __xtt_vector constructor, producing incorrect uitofp+bitcast+sfploadi
- * chains. The correct fix is making __xtt_vector a clang target type
- * (like GCC's XTT32SImode), but that requires deeper compiler changes.
- * For now, sfpi.h syntax-checks correctly and simple kernels work.
- * Real kernel compilation needs the opaque type or -O1. */
+/* C++: struct wrapper for sfpi.h compatibility.
+ * KNOWN ISSUE: At -O2, LLVM optimizer flattens the struct, causing
+ * incorrect constructor resolution in vFloat. Fix requires either
+ * Sema implicit conversion rules for the builtin type, or -O1. */
 struct __xtt_vector {
     unsigned int v;
     __xtt_vector() = default;
     constexpr __xtt_vector(unsigned int val) : v(val) {}
     constexpr operator unsigned int() const { return v; }
 };
-#else
-/* C: simple typedef (no overload ambiguity concern) */
-typedef unsigned int __xtt_vector;
 #endif
 
 /* ---- __has_builtin override ---- */
