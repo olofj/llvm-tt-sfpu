@@ -16,7 +16,7 @@
 target triple = "riscv32-unknown-unknown"
 
 declare i32 @llvm.riscv.tt.sfpload(i32, i32, i32)
-declare i32 @llvm.riscv.tt.sfploadi(i32, i32, i32)
+declare i32 @llvm.riscv.tt.sfploadi(i32, i32)
 declare void @llvm.riscv.tt.sfpstore(i32, i32, i32, i32)
 declare i32 @llvm.riscv.tt.sfpmad(i32, i32, i32, i32)
 declare i32 @llvm.riscv.tt.sfpmul(i32, i32, i32, i32)

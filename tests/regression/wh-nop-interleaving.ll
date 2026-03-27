@@ -14,7 +14,7 @@
 target triple = "riscv32-unknown-unknown"
 
 declare i32 @llvm.riscv.tt.sfpload(i32, i32, i32)
-declare i32 @llvm.riscv.tt.sfploadi(i32, i32, i32)
+declare i32 @llvm.riscv.tt.sfploadi(i32, i32)
 declare void @llvm.riscv.tt.sfpstore(i32, i32, i32, i32)
 declare i32 @llvm.riscv.tt.sfpmad(i32, i32, i32, i32)
 declare i32 @llvm.riscv.tt.sfpmul(i32, i32, i32, i32)
@@ -53,7 +53,7 @@ define void @test_wh_two_independent_mads() {
 define void @test_wh_load_fills_delay() {
   %val = call i32 @llvm.riscv.tt.sfpload(i32 0, i32 0, i32 0)
   ; Load a constant needed later — scheduler can move this between the MADs
-  %coeff = call i32 @llvm.riscv.tt.sfploadi(i32 0, i32 0, i32 16256)
+  %coeff = call i32 @llvm.riscv.tt.sfploadi(i32 0, i32 16256)
   ; MAD step 1: uses %val
   %tmp = call i32 @llvm.riscv.tt.sfpmad(i32 %val, i32 8, i32 9, i32 0)
   ; MAD step 2: uses %tmp (dependent!) but %coeff load can fill the gap

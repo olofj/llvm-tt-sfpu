@@ -43,7 +43,7 @@ IR_HEADER = """\
 target triple = "riscv32-unknown-unknown"
 
 declare i32 @llvm.riscv.tt.sfpload(i32, i32, i32)
-declare i32 @llvm.riscv.tt.sfploadi(i32, i32, i32)
+declare i32 @llvm.riscv.tt.sfploadi(i32, i32)
 declare void @llvm.riscv.tt.sfpstore(i32, i32, i32, i32)
 declare i32 @llvm.riscv.tt.sfpmad(i32, i32, i32, i32)
 declare i32 @llvm.riscv.tt.sfpmul(i32, i32, i32, i32)
@@ -222,13 +222,10 @@ def compile_kernel(name, ir_text, arch):
 
             insns = []
             for line in result.stdout.splitlines():
-                stripped = line.strip().lower()
-                if stripped.startswith("sfp") or stripped.startswith("#"):
-                    continue
-                # Match SFPU instruction mnemonics
-                match = re.match(r'\s*(sfp\w+)', line, re.IGNORECASE)
-                if match:
-                    insns.append(line.strip())
+                stripped = line.strip()
+                # Match SFPU instruction mnemonics (tab-indented in asm output)
+                if re.match(r'sfp\w+', stripped, re.IGNORECASE):
+                    insns.append(stripped)
             return insns, None
         finally:
             os.unlink(f.name)

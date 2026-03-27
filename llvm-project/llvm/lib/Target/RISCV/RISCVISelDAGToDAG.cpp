@@ -1915,12 +1915,13 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
     }
 
     case Intrinsic::riscv_tt_sfploadi: {
-      // sfploadi(lreg_ind_unused, mod0, imm16) → result in SFPURegs
+      // sfploadi(mod0, imm16) → result in SFPURegs
+      // W_CHAIN layout: (chain, intno, mod0, imm16)
       SDValue Chain = Node->getOperand(0);
       SDValue Mod0 = CurDAG->getTargetConstant(
-          Node->getConstantOperandVal(3), DL, MVT::i32);
+          Node->getConstantOperandVal(2), DL, MVT::i32);
       SDValue Imm16 = CurDAG->getTargetConstant(
-          Node->getConstantOperandVal(4), DL, MVT::i32);
+          Node->getConstantOperandVal(3), DL, MVT::i32);
       MachineSDNode *Load = CurDAG->getMachineNode(
           RISCV::SFPLOADI, DL, MVT::i32, MVT::Other, {Mod0, Imm16, Chain});
       ReplaceNode(Node, Load);
