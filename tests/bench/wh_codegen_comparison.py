@@ -353,26 +353,39 @@ def main():
     num_compiled = 0
     num_failed = 0
 
-    header = f"{'Kernel':<30} {'GCC':>4} {'LLVM':>4} {'Saved':>5} {'%':>5} " \
-             f"{'NOPs GCC':>8} {'NOPs LLVM':>9} {'Delay Fill':>10}"
+    # Note: on WH SFPU, cycles = instructions (IssueWidth=1, in-order).
+    # The SFPU issues exactly 1 instruction per cycle. A 2-cycle instruction
+    # occupies 1 issue slot but its result isn't ready for 2 cycles. An SFPNOP
+    # inserted to wait for the result costs 1 cycle of wasted throughput.
+    # Therefore: cycle reduction = instruction reduction.
+    # "Useful cycles" = total - NOPs = cycles doing real work.
+
+    header = (f"{'Kernel':<28} {'--- Cycles (= Insns) ---':>24} "
+              f"{'--- Useful Cycles ---':>22} {'Delay':>6}")
+    subhdr = (f"{'':28} {'GCC':>5} {'LLVM':>5} {'Saved':>5} {'%':>5}   "
+              f"{'GCC':>5} {'LLVM':>5} {'Wasted':>6}  {'Fill':>5}")
     print(f"\n{header}")
-    print("-" * 80)
+    print(f"{subhdr}")
+    print("-" * 90)
 
     for name, kinfo in KERNELS.items():
         insns, err = compile_kernel(name, kinfo["ir"], "wh")
 
         if err:
-            print(f"  {name:<30} COMPILE ERROR: {err}")
+            print(f"  {name:<28} COMPILE ERROR: {err}")
             num_failed += 1
             continue
 
         stats = analyze_sequence(insns)
         gcc_total = kinfo["gcc_wh_insns"]
         gcc_nops = kinfo["gcc_wh_nops"]
+        gcc_useful = gcc_total - gcc_nops
         llvm_total = stats["total"]
         llvm_nops = stats["nops"]
+        llvm_useful = llvm_total - llvm_nops
         saved = gcc_total - llvm_total
         pct = (saved / gcc_total * 100) if gcc_total > 0 else 0
+        nop_wasted = llvm_nops  # cycles doing nothing
         delay_fill_str = f"{stats['delay_filled']}/{stats['two_cycle']}"
 
         marker = ""
@@ -381,8 +394,9 @@ def main():
         if saved < 0:
             marker = " (regression)"
 
-        print(f"  {name:<28} {gcc_total:>4} {llvm_total:>4} {saved:>+5} "
-              f"{pct:>4.0f}% {gcc_nops:>8} {llvm_nops:>9} {delay_fill_str:>10}{marker}")
+        print(f"  {name:<26} {gcc_total:>5} {llvm_total:>5} {saved:>+5} "
+              f"{pct:>4.0f}%   {gcc_useful:>5} {llvm_useful:>5} "
+              f"{nop_wasted:>6}  {delay_fill_str:>5}{marker}")
 
         if verbose and insns:
             for insn in insns:
@@ -399,23 +413,34 @@ def main():
         num_compiled += 1
 
     # Summary
-    print("-" * 80)
+    print("-" * 90)
     if num_compiled > 0:
         total_saved = total_gcc["total"] - total_llvm["total"]
         total_pct = (total_saved / total_gcc["total"] * 100) if total_gcc["total"] > 0 else 0
+        gcc_useful = total_gcc["total"] - total_gcc["nops"]
+        llvm_useful = total_llvm["useful"]
         nop_saved = total_gcc["nops"] - total_llvm["nops"]
         fill_rate = (total_llvm["delay_filled"] / total_llvm["two_cycle"] * 100) \
                     if total_llvm["two_cycle"] > 0 else 0
 
-        print(f"  {'TOTAL':<28} {total_gcc['total']:>4} {total_llvm['total']:>4} "
-              f"{total_saved:>+5} {total_pct:>4.0f}% {total_gcc['nops']:>8} "
-              f"{total_llvm['nops']:>9} {total_llvm['delay_filled']}/{total_llvm['two_cycle']}")
+        print(f"  {'TOTAL':<26} {total_gcc['total']:>5} {total_llvm['total']:>5} "
+              f"{total_saved:>+5} {total_pct:>4.0f}%   {gcc_useful:>5} {llvm_useful:>5} "
+              f"{total_llvm['nops']:>6}  "
+              f"{total_llvm['delay_filled']}/{total_llvm['two_cycle']}")
         print()
-        print(f"  Kernels compiled: {num_compiled}/{num_compiled + num_failed}")
-        print(f"  Total instruction reduction: {total_saved} ({total_pct:.1f}%)")
-        print(f"  NOP reduction: {nop_saved} of {total_gcc['nops']} GCC NOPs eliminated")
-        print(f"  Delay slot fill rate: {fill_rate:.0f}% "
+        print(f"  NOTE: On WH SFPU, cycles = instructions (IssueWidth=1, in-order).")
+        print(f"  Every instruction takes exactly 1 issue cycle. NOPs are wasted cycles.")
+        print()
+        print(f"  Kernels compiled:       {num_compiled}/{num_compiled + num_failed}")
+        print(f"  Cycle reduction:        {total_saved} cycles ({total_pct:.1f}%)")
+        print(f"  Wasted cycles (NOPs):   LLVM {total_llvm['nops']} vs GCC {total_gcc['nops']} "
+              f"({nop_saved} eliminated, {nop_saved/total_gcc['nops']*100:.0f}%)")
+        print(f"  Useful work cycles:     LLVM {llvm_useful} vs GCC {gcc_useful}")
+        print(f"  Delay slot fill rate:   {fill_rate:.0f}% "
               f"({total_llvm['delay_filled']}/{total_llvm['two_cycle']} 2-cycle insns)")
+        print(f"  Throughput efficiency:   {llvm_useful/total_llvm['total']*100:.0f}% "
+              f"(useful/total) vs GCC "
+              f"{gcc_useful/total_gcc['total']*100:.0f}%")
 
     sys.exit(1 if num_failed > 0 else 0)
 
