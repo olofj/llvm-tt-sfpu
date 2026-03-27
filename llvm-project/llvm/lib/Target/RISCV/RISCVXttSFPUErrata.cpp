@@ -73,7 +73,7 @@ bool RISCVXttSFPUErrata::isSFPU2Cycle(const MachineInstr &MI) const {
     return true;
   case RISCV::SFPSHFT2:
     // SFPSHFT2 is 2-cycle on WH only (E-002 workaround adds extra cycle)
-    return STI->hasXttSFPUWH();
+    return STI->hasVendorXttSFPUWH();
   default:
     return false;
   }
@@ -158,7 +158,7 @@ bool RISCVXttSFPUErrata::isSFPUInstr(const MachineInstr &MI) const {
 /// hardware scoreboard handles cross-basic-block dependencies).
 bool RISCVXttSFPUErrata::handleE004_PipelineHazards(MachineFunction &MF) {
   bool Changed = false;
-  bool IsBH = STI->hasXttSFPUBH();
+  bool IsBH = STI->hasVendorXttSFPUBH();
 
   for (MachineBasicBlock &MBB : MF) {
     for (auto MBBI = MBB.begin(), MBBE = MBB.end(); MBBI != MBBE; ++MBBI) {
@@ -263,7 +263,7 @@ bool RISCVXttSFPUErrata::handleE012_EbreakNops(MachineFunction &MF) {
 /// with SHFLROR1 mode to clear the pipeline value to 0.
 bool RISCVXttSFPUErrata::handleE002_SFPSHFT2ZeroFill(MachineFunction &MF) {
   // Only affects WH
-  if (!STI->hasXttSFPUWH())
+  if (!STI->hasVendorXttSFPUWH())
     return false;
 
   bool Changed = false;
@@ -303,7 +303,7 @@ bool RISCVXttSFPUErrata::runOnMachineFunction(MachineFunction &MF) {
   STI = &MF.getSubtarget<RISCVSubtarget>();
 
   // Only run if SFPU extension is enabled
-  if (!STI->hasXttSFPU())
+  if (!STI->hasVendorXttSFPU())
     return false;
 
   TII = STI->getInstrInfo();

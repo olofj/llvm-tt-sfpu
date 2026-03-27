@@ -230,7 +230,7 @@ void RISCVXttSFPUReplay::allocateBuffer(
 bool RISCVXttSFPUReplay::runOnMachineFunction(MachineFunction &MF) {
   STI = &MF.getSubtarget<RISCVSubtarget>();
 
-  if (!STI->hasXttSFPU())
+  if (!STI->hasVendorXttSFPU())
     return false;
 
   TII = STI->getInstrInfo();

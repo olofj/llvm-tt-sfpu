@@ -163,7 +163,7 @@ bool RISCVXttSFPULiveness::selectLiveValueVariant(MachineInstr &MI,
 bool RISCVXttSFPULiveness::runOnMachineFunction(MachineFunction &MF) {
   STI = &MF.getSubtarget<RISCVSubtarget>();
 
-  if (!STI->hasXttSFPU())
+  if (!STI->hasVendorXttSFPU())
     return false;
 
   TII = STI->getInstrInfo();

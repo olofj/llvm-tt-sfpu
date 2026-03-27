@@ -19,6 +19,6 @@ config.substitutions.append(('%FileCheck',
 
 # Common flags
 config.substitutions.append(('%sfpu-bh-flags',
-    '-triple riscv32 -mattr=+xttsfpu,+xttsfpu-bh'))
+    '-triple riscv32 -mattr=+xttsfpu,+xttsfpubh'))
 config.substitutions.append(('%sfpu-wh-flags',
-    '-triple riscv32 -mattr=+xttsfpu,+xttsfpu-wh'))
+    '-triple riscv32 -mattr=+xttsfpu,+xttsfpuwh'))

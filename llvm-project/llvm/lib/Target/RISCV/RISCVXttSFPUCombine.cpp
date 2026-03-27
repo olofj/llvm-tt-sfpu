@@ -257,7 +257,7 @@ bool RISCVXttSFPUCombine::tryCombineLoadiIntoImm(MachineBasicBlock &MBB) {
 ///
 /// GCC: gimple-rvtt-combine.cc:try_combine_negated_operands()
 bool RISCVXttSFPUCombine::tryCombineNegatedOperands(MachineBasicBlock &MBB) {
-  if (!STI->hasXttSFPUBH())
+  if (!STI->hasVendorXttSFPUBH())
     return false;  // BH-only optimization (mod1 complement bits)
 
   const MachineRegisterInfo &MRI = MBB.getParent()->getRegInfo();
@@ -343,7 +343,7 @@ bool RISCVXttSFPUCombine::tryCombineNegatedOperands(MachineBasicBlock &MBB) {
 bool RISCVXttSFPUCombine::runOnMachineFunction(MachineFunction &MF) {
   STI = &MF.getSubtarget<RISCVSubtarget>();
 
-  if (!STI->hasXttSFPU())
+  if (!STI->hasVendorXttSFPU())
     return false;
 
   TII = STI->getInstrInfo();

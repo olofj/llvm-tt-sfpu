@@ -44,14 +44,13 @@ sfpstore l11, 0, 0, 50           # L11 as source (boundary)
 # CHECK: sfpstore l0, 0, 3, 16383
 sfpstore l0, 0, 3, 16383         # Max addr_mode and addr for WH
 
-# --- SFPLUT WH ---
-# SFPLUT uses LoadWH format with 2-bit addr_mode, 14-bit dest_reg_addr
+# --- SFPLUT (arch-independent: LUT format with lreg, mod0, dest_reg_addr) ---
 
-# CHECK: sfplut l0, 0, 0, 0
-sfplut l0, 0, 0, 0
+# CHECK: sfplut l0, 0, 0
+sfplut l0, 0, 0
 
-# CHECK: sfplut l4, 3, 2, 1024
-sfplut l4, 3, 2, 1024
+# CHECK: sfplut l4, 3, 1024
+sfplut l4, 3, 1024
 
 # --- SFPLOADMACRO WH ---
 # CHECK: sfploadmacro l0, 0, 0, 0
