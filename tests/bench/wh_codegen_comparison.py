@@ -133,7 +133,7 @@ define void @mul_add_fusable() {
     "sigmoid_approx": {
         "desc": "Sigmoid: negate, exp, add 1 (activation function)",
         "gcc_wh_insns": 10,
-        "gcc_wh_nops": 3,
+        "gcc_wh_nops": 4,  # Sequential chain: MUL→MAD→MAD→ADD, all dependent
         "ir": """
 define void @sigmoid_approx() {
   %x = call i32 @llvm.riscv.tt.sfpload(i32 0, i32 0, i32 0)
@@ -214,6 +214,33 @@ define void @estrin_degree3() {
   %x2 = call i32 @llvm.riscv.tt.sfpmul(i32 %x, i32 %x, i32 9, i32 0)
   %result = call i32 @llvm.riscv.tt.sfpmad(i32 %hi, i32 %x2, i32 %lo, i32 0)
   call void @llvm.riscv.tt.sfpstore(i32 %result, i32 0, i32 0, i32 0)
+  ret void
+}
+""",
+    },
+
+    "horner_4row_pipeline": {
+        "desc": "4-row unrolled Horner (software pipeline: all NOPs filled)",
+        "gcc_wh_insns": 24,  # 4 * (load + mad + nop + mad + nop + store)
+        "gcc_wh_nops": 8,    # 4 rows * 2 NOPs/row
+        "ir": """
+define void @horner_4row_pipeline() {
+  %v0 = call i32 @llvm.riscv.tt.sfpload(i32 0, i32 0, i32 0)
+  %v1 = call i32 @llvm.riscv.tt.sfpload(i32 0, i32 0, i32 16)
+  %v2 = call i32 @llvm.riscv.tt.sfpload(i32 0, i32 0, i32 32)
+  %v3 = call i32 @llvm.riscv.tt.sfpload(i32 0, i32 0, i32 48)
+  %t0 = call i32 @llvm.riscv.tt.sfpmad(i32 %v0, i32 8, i32 9, i32 0)
+  %t1 = call i32 @llvm.riscv.tt.sfpmad(i32 %v1, i32 8, i32 9, i32 0)
+  %t2 = call i32 @llvm.riscv.tt.sfpmad(i32 %v2, i32 8, i32 9, i32 0)
+  %t3 = call i32 @llvm.riscv.tt.sfpmad(i32 %v3, i32 8, i32 9, i32 0)
+  %r0 = call i32 @llvm.riscv.tt.sfpmad(i32 %v0, i32 %t0, i32 10, i32 0)
+  %r1 = call i32 @llvm.riscv.tt.sfpmad(i32 %v1, i32 %t1, i32 10, i32 0)
+  %r2 = call i32 @llvm.riscv.tt.sfpmad(i32 %v2, i32 %t2, i32 10, i32 0)
+  %r3 = call i32 @llvm.riscv.tt.sfpmad(i32 %v3, i32 %t3, i32 10, i32 0)
+  call void @llvm.riscv.tt.sfpstore(i32 %r0, i32 0, i32 0, i32 0)
+  call void @llvm.riscv.tt.sfpstore(i32 %r1, i32 0, i32 0, i32 16)
+  call void @llvm.riscv.tt.sfpstore(i32 %r2, i32 0, i32 0, i32 32)
+  call void @llvm.riscv.tt.sfpstore(i32 %r3, i32 0, i32 0, i32 48)
   ret void
 }
 """,
