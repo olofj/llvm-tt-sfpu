@@ -4,9 +4,9 @@
 
 | GCC Flag | Clang Equivalent | Context |
 |----------|-----------------|---------|
-| `-mcpu=tt-bh-tensix` | `-march=rv32imac_xttsfpu_xttsfpu-bh -mabi=ilp32` | BH compute cores |
+| `-mcpu=tt-bh-tensix` | `-march=rv32imac_xttsfpu_xttsfpubh -mabi=ilp32` | BH compute cores |
 | `-mcpu=tt-bh` | `-march=rv32imac_zaamo_zba_zbb -mabi=ilp32` | BH non-compute |
-| `-mcpu=tt-wh-tensix` | `-march=rv32imac_xttsfpu_xttsfpu-wh -mabi=ilp32` | WH compute cores |
+| `-mcpu=tt-wh-tensix` | `-march=rv32imac_xttsfpu_xttsfpuwh -mabi=ilp32` | WH compute cores |
 | `-mcpu=tt-wh` | `-march=rv32imac -mabi=ilp32` | WH non-compute |
 
 ## Compiler Flags

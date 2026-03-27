@@ -102,8 +102,9 @@ bool RISCVXttSFPUCombine::tryCombineMulAdd(MachineBasicBlock &MBB) {
   const MachineRegisterInfo &MRI = MBB.getParent()->getRegInfo();
   bool Changed = false;
 
-  for (auto MBBI = MBB.begin(), MBBE = MBB.end(); MBBI != MBBE; ++MBBI) {
+  for (auto MBBI = MBB.begin(), MBBE = MBB.end(); MBBI != MBBE; ) {
     MachineInstr &AddMI = *MBBI;
+    ++MBBI;  // Advance before potential erase
 
     // Must be SFPADD (not _lv for now)
     if (AddMI.getOpcode() != RISCV::SFPADD)
@@ -145,13 +146,13 @@ bool RISCVXttSFPUCombine::tryCombineMulAdd(MachineBasicBlock &MBB) {
           .add(OtherOp)                     // src_c (from ADD other)
           .addImm(MadMod);                  // mod1 = add_mod ^ mul_mod
 
-      // Remove the ADD and MUL
+      // Remove the ADD and MUL (iterator already advanced past AddMI)
       AddMI.eraseFromParent();
       MulMI->eraseFromParent();
 
       Changed = true;
       LLVM_DEBUG(dbgs() << "  Combined MUL+ADD into MAD\n");
-      break;  // Restart from the new instruction
+      break;  // Exit inner loop, outer loop already advanced
     }
   }
 

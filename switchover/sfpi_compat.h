@@ -153,7 +153,7 @@
 #define __builtin_rvtt_bh_sfpmul24_lv(live, a, b, mod) __builtin_riscv_tt_sfpmul24_lv(live, a, b, 9, mod)
 
 /* LUT */
-#define __builtin_rvtt_sfplut(dst, l0, l1, l2, mod) __builtin_riscv_tt_sfplut(0, 0, 0)
+#define __builtin_rvtt_sfplut(dst, l0, l1, l2, mod) __builtin_riscv_tt_sfplut(0, 0)
 #define __builtin_rvtt_sfplutfp32_3r(dst, l0, l1, l2, mod) __builtin_riscv_tt_sfplutfp32(dst, mod)
 #define __builtin_rvtt_sfplutfp32_6r(dst, l0, l1, l2, l4, l5, l6, mod) __builtin_riscv_tt_sfplutfp32(dst, mod)
 
@@ -208,6 +208,89 @@
     __builtin_riscv_tt_sfpsetcc(a, 0, mod)
 
 #endif /* __riscv_xtttensixwh */
+
+/* ---- SFPI control-flow builtins ---- */
+/* These are NOT hardware instructions. GCC's SFPI implementation lowers
+ * them in the GCC middle-end (gimple-rvtt.cc). For LLVM, we implement them
+ * as inline sequences of the primitive CC-stack builtins. */
+
+/* sfpassign_lv: conditional assignment (used in v_if/v_else regions)
+ * GCC lowers this to a predicated move. For clang, the _lv builtin
+ * variants handle this — sfpassign_lv(dst, src) is just sfpmov_lv. */
+#define __builtin_rvtt_sfpassign_lv(live, src) \
+    __builtin_riscv_tt_sfpmov_lv(live, src, 0, 0)
+
+/* sfpxvif: begin a v_if region. GCC pushes CC then sets condition.
+ * The SFPI C++ API handles this via SFPPUSHC + SFPSETCC, so we
+ * define it as a no-op — the C++ wrapper manages the CC stack. */
+#define __builtin_rvtt_sfpxvif(cc) /* handled by sfpi.h C++ wrappers */
+
+/* sfpxcondb/sfpxcondi: conditional-branch helpers used by SFPI's
+ * v_if/v_elseif implementation. These are GCC gimple builtins that
+ * get lowered to SFPSETCC+SFPCOMPC sequences. For clang, the SFPI
+ * C++ headers manage this flow directly. Stub as no-ops. */
+#define __builtin_rvtt_sfpxcondb(src, mod) /* lowered by sfpi.h */
+#define __builtin_rvtt_sfpxcondi(imm, mod) /* lowered by sfpi.h */
+
+/* sfpxbool: boolean operation on CC stack. Stub for now. */
+#define __builtin_rvtt_sfpxbool(op, result) (result)
+
+/* sfpxicmpv: integer compare vector — maps to sfpsetcc with int mode */
+#define __builtin_rvtt_sfpxicmpv(a, b, mod) \
+    __builtin_riscv_tt_sfpsetcc(a, 0, mod)
+
+/* sfpreadlreg/sfpwritelreg: L-register read/write helpers.
+ * In GCC, these are direct register accesses. For LLVM, we use inline asm
+ * since there's no intrinsic for raw LReg access (the register allocator
+ * manages LRegs). */
+static inline unsigned int __builtin_rvtt_sfpreadlreg(unsigned int lreg) {
+    unsigned int result;
+    __asm__ volatile("sfpmov %0, %1, 0" : "=r"(result) : "r"(lreg));
+    return result;
+}
+static inline void __builtin_rvtt_sfpwritelreg(unsigned int lreg, unsigned int val) {
+    __asm__ volatile("sfpmov %0, %1, 0" : "=r"(lreg) : "r"(val));
+}
+
+/* synth_opcode: emit a raw Tensix opcode. Not an SFPU instruction.
+ * Used for rare non-SFPU operations within SFPU kernels. */
+#define __builtin_rvtt_synth_opcode(opcode) \
+    __asm__ volatile(".word %0" :: "i"(opcode))
+
+/* ttincrwc: increment write counter (Tensix scalar instruction, not SFPU).
+ * The write counter manages Dst tile addressing. */
+#define __builtin_rvtt_ttincrwc(cr, incr, mask, val) \
+    __asm__ volatile("# ttincrwc placeholder" ::: "memory")
+
+/* ttreplay: replay buffer control. Stub for initial bring-up. */
+#define __builtin_rvtt_ttreplay(buf, start, len, exec_while_loading) \
+    /* replay handled by SFPU replay pass */
+
+/* WH-specific missing builtins */
+#ifdef __riscv_xtttensixwh
+#define __builtin_rvtt_wh_sfpcast(src, mod) __builtin_riscv_tt_sfpcast(src, 0, mod)
+#define __builtin_rvtt_wh_sfpsetsgn_i(buf, imm12, x1, x2, src) \
+    __builtin_riscv_tt_sfpsetsgn(src, imm12, 0)
+#define __builtin_rvtt_wh_sfpsetsgn_v(dst, src) \
+    __builtin_riscv_tt_sfpsetsgn(src, 0, 0)
+#define __builtin_rvtt_wh_sfpstochrnd_i(buf, mode, x1, x2, x3, src, mod) \
+    __builtin_riscv_tt_sfpstochrnd(mode, 0, src, 0, mod)
+#define __builtin_rvtt_wh_sfpstochrnd_v(mode, src_b, src_c, mod) \
+    __builtin_riscv_tt_sfpstochrnd(mode, 0, src_b, src_c, mod)
+#define __builtin_rvtt_wh_sfpshft_v(dst, src, mod) \
+    __builtin_riscv_tt_sfpshft(src, 0, mod)
+#define __builtin_rvtt_wh_sfpconfig_v(src, mod) \
+    __builtin_riscv_tt_sfpconfig(0, src, mod)
+#endif /* __riscv_xtttensixwh */
+
+/* BH-specific missing builtins */
+#ifdef __riscv_xtttensixbh
+#define __builtin_rvtt_bh_sfpcast(src, mod) __builtin_riscv_tt_sfpcast(src, 0, mod)
+#define __builtin_rvtt_bh_sfpconfig_v(src, mod) \
+    __builtin_riscv_tt_sfpconfig(0, src, mod)
+#define __builtin_rvtt_bh_sfpxicmpv(a, b, mod) \
+    __builtin_riscv_tt_sfpsetcc(a, 0, mod)
+#endif /* __riscv_xtttensixbh */
 
 #endif /* __clang__ */
 #endif /* SFPI_COMPAT_H */

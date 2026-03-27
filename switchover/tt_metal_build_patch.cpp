@@ -3,133 +3,137 @@
 // Patch for tt_metal/jit_build/build.cpp to support LLVM/clang as an
 // alternative to sfpi-gcc for SFPU kernel compilation.
 //
-// This file shows the exact changes needed in JitBuildEnv::init().
-// Apply with: patch -p1 < switchover/tt_metal_build.patch
-//
 // The key changes:
 // 1. Look for clang in addition to riscv-tt-elf-g++
 // 2. Map GCC -mcpu flags to clang -march/-mattr flags
 // 3. Add -include sfpi_compat.h for builtin name mapping
 // 4. Use clang-compatible warning flags
+//
+// Enabled by: TT_METAL_USE_LLVM_SFPU=1
 
 // ============================================================================
-// ORIGINAL (lines 112-130 of build.cpp):
+// PATCH 1: JitBuildEnv::init() — compiler selection
+// File: tt_metal/jit_build/build.cpp
 // ============================================================================
-#if 0
-    const std::array<std::string, 2> sfpi_roots = {this->root_ + "runtime/sfpi", "/opt/tenstorrent/sfpi"};
 
-    bool sfpi_found = false;
-    for (unsigned i = 0; i < 2; ++i) {
-        auto gxx = sfpi_roots[i] + "/compiler/bin/riscv-tt-elf-g++";
-        if (std::filesystem::exists(gxx)) {
-            this->gpp_ += gxx + " ";
-            this->gpp_include_dir_ = sfpi_roots[i] + "/include";
-            log_debug(tt::LogBuildKernels, "Using {} sfpi at {}", i ? "system" : "local", sfpi_roots[i]);
-            sfpi_found = true;
-            break;
-        }
-    }
-    if (!sfpi_found) {
-        TT_THROW("sfpi not found at {} or {}", sfpi_roots[0], sfpi_roots[1]);
-    }
-#endif
+// After the existing sfpi_roots search, add LLVM path:
 
-// ============================================================================
-// PATCHED VERSION:
-// ============================================================================
-#if 1
-    // Check environment variable to select compiler
-    const bool use_llvm = std::getenv("TT_METAL_USE_LLVM_SFPU") != nullptr;
+#if 0 // CONTEXT: Shows where in build.cpp to apply
 
-    if (use_llvm) {
-        // LLVM/clang path
+    // --- Add this block BEFORE the existing GCC search ---
+    const bool use_llvm_sfpu = std::getenv("TT_METAL_USE_LLVM_SFPU") != nullptr;
+
+    if (use_llvm_sfpu) {
+        // Search for LLVM clang compiler
         const std::array<std::string, 3> llvm_paths = {
             this->root_ + "runtime/llvm-sfpu/bin/clang++",
             "/opt/tenstorrent/llvm-sfpu/bin/clang++",
-            "clang++",  // system clang as fallback
+            "clang++",  // system PATH fallback
         };
 
         bool found = false;
         for (const auto& clang_path : llvm_paths) {
-            if (std::filesystem::exists(clang_path) || clang_path == "clang++") {
+            if (clang_path == "clang++" || std::filesystem::exists(clang_path)) {
                 this->gpp_ += clang_path + " ";
                 this->gpp_ += "--target=riscv32-unknown-elf ";
-                this->gpp_ += "-fno-integrated-as ";  // Use external assembler if needed
 
-                // SFPI compatibility header location
+                // SFPI compatibility header
                 this->gpp_include_dir_ = this->root_ + "runtime/llvm-sfpu/include";
 
-                log_debug(tt::LogBuildKernels, "Using LLVM sfpu compiler at {}", clang_path);
+                log_debug(tt::LogBuildKernels,
+                          "Using LLVM SFPU compiler at {}", clang_path);
                 found = true;
                 break;
             }
         }
         if (!found) {
-            TT_THROW("LLVM sfpu compiler not found; set TT_METAL_USE_LLVM_SFPU=0 to use GCC");
+            TT_THROW("LLVM sfpu compiler not found; unset TT_METAL_USE_LLVM_SFPU to use GCC");
         }
     } else {
-        // Original GCC path (unchanged)
-        const std::array<std::string, 2> sfpi_roots = {this->root_ + "runtime/sfpi", "/opt/tenstorrent/sfpi"};
-
-        bool sfpi_found = false;
-        for (unsigned i = 0; i < 2; ++i) {
-            auto gxx = sfpi_roots[i] + "/compiler/bin/riscv-tt-elf-g++";
-            if (std::filesystem::exists(gxx)) {
-                this->gpp_ += gxx + " ";
-                this->gpp_include_dir_ = sfpi_roots[i] + "/include";
-                log_debug(tt::LogBuildKernels, "Using {} sfpi at {}", i ? "system" : "local", sfpi_roots[i]);
-                sfpi_found = true;
-                break;
-            }
-        }
-        if (!sfpi_found) {
-            TT_THROW("sfpi not found at {} or {}", sfpi_roots[0], sfpi_roots[1]);
-        }
+        // --- Original GCC search (unchanged) ---
+        // ...existing sfpi_roots code...
     }
+
 #endif
 
 // ============================================================================
-// Also patch common_flags in the HAL (bh_hal.cpp, wh_hal.cpp):
+// PATCH 2: BH common_flags()
+// File: tt_metal/llrt/hal/tt-1xx/blackhole/bh_hal.cpp
 // ============================================================================
 
-// ORIGINAL (bh_hal.cpp:182-186):
-#if 0
-    std::string common_flags(const Params& params) const override {
-        std::string cflags = params.core_type == HalProgrammableCoreType::TENSIX &&
-                                     params.processor_class == HalProcessorClassType::COMPUTE
-                                 ? "-mcpu=tt-bh-tensix "
-                                 : "-mcpu=tt-bh ";
-#endif
+#if 0 // CONTEXT
 
-// PATCHED (bh_hal.cpp):
-#if 1
     std::string common_flags(const Params& params) const override {
         const bool use_llvm = std::getenv("TT_METAL_USE_LLVM_SFPU") != nullptr;
         std::string cflags;
 
-        if (use_llvm) {
-            // LLVM flag mapping
-            if (params.core_type == HalProgrammableCoreType::TENSIX &&
-                params.processor_class == HalProcessorClassType::COMPUTE) {
-                cflags = "-march=rv32imac_xttsfpu_xttsfpu-bh "
+        if (params.core_type == HalProgrammableCoreType::TENSIX &&
+            params.processor_class == HalProcessorClassType::COMPUTE) {
+            if (use_llvm) {
+                // LLVM: -mcpu=tensix-bh auto-enables xttsfpu+xttsfpubh via ProcessorModel
+                cflags = "-mcpu=tensix-bh "
                          "-mabi=ilp32 "
+                         "-D__SFPU_BH__ "
                          "-include sfpi_compat.h ";
             } else {
-                cflags = "-march=rv32imac_zaamo_zba_zbb "
-                         "-mabi=ilp32 ";
+                // GCC (original)
+                cflags = "-mcpu=tt-bh-tensix ";
             }
         } else {
-            // Original GCC flags
-            cflags = params.core_type == HalProgrammableCoreType::TENSIX &&
-                             params.processor_class == HalProcessorClassType::COMPUTE
-                         ? "-mcpu=tt-bh-tensix "
-                         : "-mcpu=tt-bh ";
+            if (use_llvm) {
+                cflags = "-march=rv32imac -mabi=ilp32 ";
+            } else {
+                cflags = "-mcpu=tt-bh ";
+            }
         }
+
 #endif
 
-// PATCHED (wh_hal.cpp) — similar pattern:
-#if 1
-    // For WH:
-    // GCC:  -mcpu=tt-wh-tensix
-    // LLVM: -march=rv32imac_xttsfpu_xttsfpu-wh -mabi=ilp32 -include sfpi_compat.h
+// ============================================================================
+// PATCH 3: WH common_flags()
+// File: tt_metal/llrt/hal/tt-1xx/wormhole/wh_hal.cpp
+// ============================================================================
+
+#if 0 // CONTEXT
+
+    std::string common_flags(const Params& params) const override {
+        const bool use_llvm = std::getenv("TT_METAL_USE_LLVM_SFPU") != nullptr;
+        std::string cflags;
+
+        if (params.core_type == HalProgrammableCoreType::TENSIX &&
+            params.processor_class == HalProcessorClassType::COMPUTE) {
+            if (use_llvm) {
+                cflags = "-mcpu=tensix-wh "
+                         "-mabi=ilp32 "
+                         "-D__SFPU_WH__ "
+                         "-include sfpi_compat.h ";
+            } else {
+                cflags = "-mcpu=tt-wh-tensix ";
+            }
+        } else {
+            if (use_llvm) {
+                cflags = "-march=rv32imac -mabi=ilp32 ";
+            } else {
+                cflags = "-mcpu=tt-wh ";
+            }
+        }
+
 #endif
+
+// ============================================================================
+// Flag mapping summary:
+//
+// GCC -mcpu=tt-bh-tensix  → LLVM -mcpu=tensix-bh -mabi=ilp32 -D__SFPU_BH__
+// GCC -mcpu=tt-wh-tensix  → LLVM -mcpu=tensix-wh -mabi=ilp32 -D__SFPU_WH__
+// GCC -mcpu=tt-bh         → LLVM -march=rv32imac -mabi=ilp32
+// GCC -mcpu=tt-wh         → LLVM -march=rv32imac -mabi=ilp32
+//
+// The -mcpu=tensix-bh/wh flags auto-enable the correct xttsfpu* features
+// via the ProcessorModel definitions in RISCVProcessors.td.
+//
+// Additional required flags for LLVM:
+//   --target=riscv32-unknown-elf    (cross-compilation target)
+//   -include sfpi_compat.h          (GCC→LLVM builtin name mapping)
+//   -D__SFPU_BH__ / -D__SFPU_WH__  (architecture detection for compat header)
+//   -mno-relax                      (optional: disable linker relaxation)
+// ============================================================================

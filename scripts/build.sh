@@ -30,13 +30,21 @@ cmake --build . --target llvm-mc -- -j"$JOBS"
 echo "=== Building llvm-tblgen ==="
 cmake --build . --target llvm-tblgen -- -j"$JOBS"
 
-# Phase 3+: Build llc (compiler)
+# Phase 2: Build llc (compiler)
 echo "=== Building llc (compiler) ==="
 cmake --build . --target llc -- -j"$JOBS"
+
+# Phase 3: Build clang (requires LLVM_ENABLE_PROJECTS="clang" in cmake)
+echo "=== Building clang ==="
+cmake --build . --target clang -- -j"$JOBS"
 
 echo ""
 echo "=== Build Complete ==="
 echo "Binaries in: $BUILD_DIR/bin/"
 echo ""
 echo "Test with:"
-echo "  $BUILD_DIR/bin/llvm-mc -triple riscv32 -mattr=+xttsfpu,+xttsfpu-bh ..."
+echo "  $BUILD_DIR/bin/llvm-mc -triple riscv32 -mattr=+xttsfpu,+xttsfpubh ..."
+echo "  $BUILD_DIR/bin/clang --target=riscv32-unknown-elf -march=rv32imac_xttsfpu_xttsfpubh -emit-llvm -S test.c"
+echo ""
+echo "Run test suite:"
+echo "  ./switchover/test_compile_kernel.sh bh"

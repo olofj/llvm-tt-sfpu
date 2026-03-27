@@ -68,8 +68,8 @@ sfpiadd l1, l3, 100, 0
 # CHECK: sfpshft l2, l4, 5, 0
 sfpshft l2, l4, 5, 0
 
-# CHECK: sfpsetcc l0, l1, 0, 0
-sfpsetcc l0, l1, 0, 0
+# CHECK: sfpsetcc 0, l1, 0, 0
+sfpsetcc 0, l1, 0, 0
 
 # CHECK: sfpmov l3, l5, 0, 0
 sfpmov l3, l5, 0, 0
@@ -108,20 +108,20 @@ sfpmul l0, l1, l2, l9, 0
 
 # --- CC Stack ---
 
-# CHECK: sfppushc l0, l0, 0, 0
-sfppushc l0, l0, 0, 0
+# CHECK: sfppushc 0, l0, 0, 0
+sfppushc 0, l0, 0, 0
 
-# CHECK: sfppopc l0, l0, 0, 0
-sfppopc l0, l0, 0, 0
+# CHECK: sfppopc 0, l0, 0, 0
+sfppopc 0, l0, 0, 0
 
 # CHECK: sfpsetsgn l3, l4, 0, 0
 sfpsetsgn l3, l4, 0, 0
 
-# CHECK: sfpencc l0, l0, 0, 0
-sfpencc l0, l0, 0, 0
+# CHECK: sfpencc 0, l0, 0, 0
+sfpencc 0, l0, 0, 0
 
-# CHECK: sfpcompc l0, l0, 0, 0
-sfpcompc l0, l0, 0, 0
+# CHECK: sfpcompc 0, l0, 0, 0
+sfpcompc 0, l0, 0, 0
 
 # --- Cross-Lane ---
 
@@ -177,8 +177,8 @@ sfpmul24 l0, l1, l2, l9, 0
 # CHECK: sfparecip l3, l4, 0, 0
 sfparecip l3, l4, 0, 0
 
-# CHECK: sfpgt l0, l1, 0, 0
-sfpgt l0, l1, 0, 0
+# CHECK: sfpgt 0, l1, 0, 0
+sfpgt 0, l1, 0, 0
 
-# CHECK: sfple l2, l3, 0, 0
-sfple l2, l3, 0, 0
+# CHECK: sfple 2, l3, 0, 0
+sfple 2, l3, 0, 0
