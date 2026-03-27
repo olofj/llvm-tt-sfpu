@@ -268,10 +268,10 @@ bool RISCVXttSFPUErrata::handleE002_SFPSHFT2ZeroFill(MachineFunction &MF) {
 
   bool Changed = false;
 
-  // SHFLSHR1 mode is encoded in mod1 field
-  // TODO: Define the exact mod1 value for SHFLSHR1 from C-020
-  const unsigned SHFLSHR1_MOD1 = 2;  // Placeholder — verify from sfpi-gcc
-  const unsigned SHFLROR1_MOD1 = 1;  // Placeholder — verify from sfpi-gcc
+  // SFPSHFT2 mod1 values from sfpi-gcc/gcc/config/riscv/tt/rvtt-protos.h:213-219
+  // and ttsim-analysis/ERRATA.md C-020 (SFPSHFT2 Modifiers table)
+  const unsigned SHFLSHR1_MOD1 = 4;  // SUBVEC_SHFLSHR1 (shift right 1, zero-fill)
+  const unsigned SHFLROR1_MOD1 = 3;  // SUBVEC_SHFLROR1 (rotate right 1)
 
   for (MachineBasicBlock &MBB : MF) {
     for (auto MBBI = MBB.begin(), MBBE = MBB.end(); MBBI != MBBE; ++MBBI) {

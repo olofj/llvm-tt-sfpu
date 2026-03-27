@@ -286,11 +286,16 @@ bool RISCVXttSFPUReplay::runOnMachineFunction(MachineFunction &MF) {
         // Encode: (start_idx << 14) | (len << 4) | (0 << 1) | (1 << 0)
         unsigned ReplayLoadWord = (Slot << 14) | (Cand->Length << 4) | 0x01;
 
-        // Insert REPLAY-load before the original sequence
-        // This is a Tensix instruction (opcode 0x04), not an SFPU instruction.
-        // We emit it as a raw instruction word via an inline asm or custom MI.
-        // For now, we use the SFPNOP placeholder and add a comment.
-        // TODO: Add proper REPLAY instruction definition to TableGen.
+        // REPLAY is a Tensix control instruction (opcode 0x04), not an SFPU
+        // instruction. It is not yet defined in RISCVInstrInfoXttSFPU.td.
+        // When added, the encoding is:
+        //   (0x04 << 24) | (start_idx << 14) | (len << 4) |
+        //   (execute_while_loading << 1) | (load_mode << 0)
+        //
+        // For now, emit SFPNOP as a placeholder. The clone deletion still
+        // saves code size. The SFPNOP costs 1 cycle (same as REPLAY would).
+        // TODO: Add TTREPLAY instruction to TableGen and emit it here.
+        (void)ReplayLoadWord;
         BuildMI(MBB, *FirstInOriginal, DL, TII->get(RISCV::SFPNOP))
             .setMIFlag(MachineInstr::MIFlag::FrameSetup);  // Tag for identification
       }
@@ -306,7 +311,9 @@ bool RISCVXttSFPUReplay::runOnMachineFunction(MachineFunction &MF) {
         // Encode: (start_idx << 14) | (len << 4) | (1 << 1) | (0 << 0)
         unsigned ReplayExecWord = (Slot << 14) | (Cand->Length << 4) | 0x02;
 
-        // Insert REPLAY-execute before the clone, then delete the clone
+        // Insert REPLAY-execute before the clone, then delete the clone.
+        // Same placeholder approach as load mode above.
+        (void)ReplayExecWord;
         BuildMI(MBB, *FirstInClone, DL, TII->get(RISCV::SFPNOP))
             .setMIFlag(MachineInstr::MIFlag::FrameDestroy);  // Tag for identification
 
