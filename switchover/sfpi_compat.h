@@ -21,24 +21,18 @@
 #ifdef __clang__
 
 /* ---- __xtt_vector type ---- */
-/* GCC's __xtt_vector is a compiler builtin type (XTT32SImode) that is
- * distinct from unsigned int but implicitly convertible both ways.
+/* __xtt_vector is a clang builtin type (RISCVVTypes.def) with implicit
+ * conversion rules to/from unsigned int (SemaOverload.cpp). Distinct for
+ * overload resolution, opaque to optimizer. Matches GCC's XTT32SImode.
  *
- * We provide __xtt_vector as a builtin type in clang (via RISCVVTypes.def)
- * but the builtin type doesn't support implicit conversion to/from uint.
- * Until we add Sema conversion rules, use the struct approach in C++ for
- * the conversion semantics that sfpi.h requires. */
+ * _XTT(expr): cast builtin return value (unsigned int) to __xtt_vector.
+ * Needed because clang builtins return unsigned int, but sfpi.h expects
+ * __xtt_vector for correct constructor resolution. */
 #ifdef __cplusplus
-/* C++: struct wrapper for sfpi.h compatibility.
- * KNOWN ISSUE: At -O2, LLVM optimizer flattens the struct, causing
- * incorrect constructor resolution in vFloat. Fix requires either
- * Sema implicit conversion rules for the builtin type, or -O1. */
-struct __xtt_vector {
-    unsigned int v;
-    __xtt_vector() = default;
-    constexpr __xtt_vector(unsigned int val) : v(val) {}
-    constexpr operator unsigned int() const { return v; }
-};
+#define _XTT(x) static_cast<__xtt_vector>(x)
+#else
+/* In C, __xtt_vector is the builtin type — assignment from uint is implicit */
+#define _XTT(x) (x)
 #endif
 
 /* ---- __has_builtin override ---- */
@@ -112,34 +106,33 @@ static inline unsigned int __builtin_rvtt_sfpshft_i(
 #define __builtin_rvtt_sfpsetcc_i(imm, mod) __builtin_riscv_tt_sfpsetcc(0, imm, mod)
 #define __builtin_rvtt_sfpsetcc_v(src, mod) __builtin_riscv_tt_sfpsetcc(src, 0, mod)
 
-/* Register operations */
-#define __builtin_rvtt_sfpmov(src, mod) __builtin_riscv_tt_sfpmov(src, 0, mod)
-#define __builtin_rvtt_sfpmov_lv(live, src, mod) __builtin_riscv_tt_sfpmov_lv(live, src, 0, mod)
-#define __builtin_rvtt_sfpabs(src, mod) __builtin_riscv_tt_sfpabs(src, 0, mod)
-#define __builtin_rvtt_sfpabs_lv(live, src, mod) __builtin_riscv_tt_sfpabs_lv(live, src, 0, mod)
-#define __builtin_rvtt_sfpnot(src) __builtin_riscv_tt_sfpnot(src, 0, 0)
-#define __builtin_rvtt_sfpnot_lv(live, src) __builtin_riscv_tt_sfpnot_lv(live, src, 0, 0)
+/* Register operations — _XTT() casts return to __xtt_vector for overload resolution */
+#define __builtin_rvtt_sfpmov(src, mod) _XTT(__builtin_riscv_tt_sfpmov(src, 0, mod))
+#define __builtin_rvtt_sfpmov_lv(live, src, mod) _XTT(__builtin_riscv_tt_sfpmov_lv(live, src, 0, mod))
+#define __builtin_rvtt_sfpabs(src, mod) _XTT(__builtin_riscv_tt_sfpabs(src, 0, mod))
+#define __builtin_rvtt_sfpabs_lv(live, src, mod) _XTT(__builtin_riscv_tt_sfpabs_lv(live, src, 0, mod))
+#define __builtin_rvtt_sfpnot(src) _XTT(__builtin_riscv_tt_sfpnot(src, 0, 0))
+#define __builtin_rvtt_sfpnot_lv(live, src) _XTT(__builtin_riscv_tt_sfpnot_lv(live, src, 0, 0))
 
 /* Exponent/mantissa operations */
-#define __builtin_rvtt_sfpexexp(src, mod) __builtin_riscv_tt_sfpexexp(src, 0, mod)
-#define __builtin_rvtt_sfpexexp_lv(live, src, mod) __builtin_riscv_tt_sfpexexp_lv(live, src, 0, mod)
-#define __builtin_rvtt_sfpexman(src, mod) __builtin_riscv_tt_sfpexman(src, 0, mod)
-#define __builtin_rvtt_sfpexman_lv(live, src, mod) __builtin_riscv_tt_sfpexman_lv(live, src, 0, mod)
-#define __builtin_rvtt_sfplz(src, mod) __builtin_riscv_tt_sfplz(src, 0, mod)
-#define __builtin_rvtt_sfplz_lv(live, src, mod) __builtin_riscv_tt_sfplz_lv(live, src, 0, mod)
+#define __builtin_rvtt_sfpexexp(src, mod) _XTT(__builtin_riscv_tt_sfpexexp(src, 0, mod))
+#define __builtin_rvtt_sfpexexp_lv(live, src, mod) _XTT(__builtin_riscv_tt_sfpexexp_lv(live, src, 0, mod))
+#define __builtin_rvtt_sfpexman(src, mod) _XTT(__builtin_riscv_tt_sfpexman(src, 0, mod))
+#define __builtin_rvtt_sfpexman_lv(live, src, mod) _XTT(__builtin_riscv_tt_sfpexman_lv(live, src, 0, mod))
+#define __builtin_rvtt_sfplz(src, mod) _XTT(__builtin_riscv_tt_sfplz(src, 0, mod))
+#define __builtin_rvtt_sfplz_lv(live, src, mod) _XTT(__builtin_riscv_tt_sfplz_lv(live, src, 0, mod))
 
 /* Logic operations */
-#define __builtin_rvtt_sfpand(dst, src) __builtin_riscv_tt_sfpand(src, 0, 0)
-#define __builtin_rvtt_sfpor(dst, src) __builtin_riscv_tt_sfpor(src, 0, 0)
-#define __builtin_rvtt_sfpxor(dst, src) __builtin_riscv_tt_sfpxor(src, 0, 0)
+#define __builtin_rvtt_sfpand(dst, src) _XTT(__builtin_riscv_tt_sfpand(src, 0, 0))
+#define __builtin_rvtt_sfpor(dst, src) _XTT(__builtin_riscv_tt_sfpor(src, 0, 0))
+#define __builtin_rvtt_sfpxor(dst, src) _XTT(__builtin_riscv_tt_sfpxor(src, 0, 0))
 
 /* Shift vector (variable amount) */
-#define __builtin_rvtt_sfpshft_v(dst, src, mod) \
-    __builtin_riscv_tt_sfpshft(src, 0, mod)
+#define __builtin_rvtt_sfpshft_v(dst, src, mod) _XTT(__builtin_riscv_tt_sfpshft(src, 0, mod))
 
 /* Cast / rounding */
-#define __builtin_rvtt_sfpcast(src, mod) __builtin_riscv_tt_sfpcast(src, 0, mod)
-#define __builtin_rvtt_sfpcast_lv(live, src, mod) __builtin_riscv_tt_sfpcast_lv(live, src, 0, mod)
+#define __builtin_rvtt_sfpcast(src, mod) _XTT(__builtin_riscv_tt_sfpcast(src, 0, mod))
+#define __builtin_rvtt_sfpcast_lv(live, src, mod) _XTT(__builtin_riscv_tt_sfpcast_lv(live, src, 0, mod))
 
 /* Config */
 #define __builtin_rvtt_sfpconfig_v(src, mod) __builtin_riscv_tt_sfpconfig(0, src, mod)
@@ -160,12 +153,12 @@ static inline unsigned int __builtin_rvtt_sfpshft_i(
     __builtin_riscv_tt_sfploadi(mod0, imm16)
 
 /* 3-operand arithmetic BH */
-#define __builtin_rvtt_bh_sfpmad(a, b, c, mod) __builtin_riscv_tt_sfpmad(a, b, c, mod)
-#define __builtin_rvtt_bh_sfpmad_lv(live, a, b, c, mod) __builtin_riscv_tt_sfpmad_lv(live, a, b, c, mod)
-#define __builtin_rvtt_bh_sfpmul(a, b, mod) __builtin_riscv_tt_sfpmul(a, b, 9, mod)
-#define __builtin_rvtt_bh_sfpmul_lv(live, a, b, mod) __builtin_riscv_tt_sfpmul_lv(live, a, b, 9, mod)
-#define __builtin_rvtt_bh_sfpadd(a, b, mod) __builtin_riscv_tt_sfpadd(10, a, b, mod)
-#define __builtin_rvtt_bh_sfpadd_lv(live, a, b, mod) __builtin_riscv_tt_sfpadd_lv(live, 10, a, b, mod)
+#define __builtin_rvtt_bh_sfpmad(a, b, c, mod) _XTT(__builtin_riscv_tt_sfpmad(a, b, c, mod))
+#define __builtin_rvtt_bh_sfpmad_lv(live, a, b, c, mod) _XTT(__builtin_riscv_tt_sfpmad_lv(live, a, b, c, mod))
+#define __builtin_rvtt_bh_sfpmul(a, b, mod) _XTT(__builtin_riscv_tt_sfpmul(a, b, 9, mod))
+#define __builtin_rvtt_bh_sfpmul_lv(live, a, b, mod) _XTT(__builtin_riscv_tt_sfpmul_lv(live, a, b, 9, mod))
+#define __builtin_rvtt_bh_sfpadd(a, b, mod) _XTT(__builtin_riscv_tt_sfpadd(10, a, b, mod))
+#define __builtin_rvtt_bh_sfpadd_lv(live, a, b, mod) _XTT(__builtin_riscv_tt_sfpadd_lv(live, 10, a, b, mod))
 
 /* Immediate arithmetic BH */
 #define __builtin_rvtt_bh_sfpmuli(buf, src, imm16, x1, x2, mod) \
@@ -175,21 +168,21 @@ static inline unsigned int __builtin_rvtt_sfpshft_i(
 
 /* Unary with immediate BH */
 #define __builtin_rvtt_bh_sfpsetexp_i(buf, imm12, x1, x2, src) \
-    __builtin_riscv_tt_sfpsetexp(src, imm12, 0)
+    _XTT(__builtin_riscv_tt_sfpsetexp(src, imm12, 0))
 #define __builtin_rvtt_bh_sfpsetexp_v(dst, src) \
-    __builtin_riscv_tt_sfpsetexp(src, 0, 0)
+    _XTT(__builtin_riscv_tt_sfpsetexp(src, 0, 0))
 #define __builtin_rvtt_bh_sfpsetman_i(buf, imm12, x1, x2, src, mod) \
-    __builtin_riscv_tt_sfpsetman(src, imm12, mod)
+    _XTT(__builtin_riscv_tt_sfpsetman(src, imm12, mod))
 #define __builtin_rvtt_bh_sfpsetman_v(dst, src) \
-    __builtin_riscv_tt_sfpsetman(src, 0, 0)
+    _XTT(__builtin_riscv_tt_sfpsetman(src, 0, 0))
 #define __builtin_rvtt_bh_sfpsetsgn_i(buf, imm12, x1, x2, src) \
     __builtin_riscv_tt_sfpsetsgn(src, imm12, 0)
 #define __builtin_rvtt_bh_sfpsetsgn_v(dst, src) \
     __builtin_riscv_tt_sfpsetsgn(src, 0, 0)
 #define __builtin_rvtt_bh_sfpdivp2(buf, imm12, x1, x2, src, mod) \
-    __builtin_riscv_tt_sfpdivp2(src, imm12, mod)
+    _XTT(__builtin_riscv_tt_sfpdivp2(src, imm12, mod))
 #define __builtin_rvtt_bh_sfpdivp2_lv(buf, live, imm12, x1, x2, src, mod) \
-    __builtin_riscv_tt_sfpdivp2_lv(live, src, imm12, mod)
+    _XTT(__builtin_riscv_tt_sfpdivp2_lv(live, src, imm12, mod))
 
 /* Integer operations BH */
 #define __builtin_rvtt_bh_sfpxiadd_i(buf, src, imm12, x1, x2, mod) \
@@ -216,32 +209,32 @@ static inline unsigned int __builtin_rvtt_sfpshft_i(
     (__builtin_riscv_tt_sfpsetcc(v, i, mod), 0)
 
 /* BH-specific */
-#define __builtin_rvtt_bh_sfpmov_config(src) __builtin_riscv_tt_sfpmov(src, 0, 0)
-#define __builtin_rvtt_bh_sfparecip(src, mod) __builtin_riscv_tt_sfparecip(src, 0, mod)
-#define __builtin_rvtt_bh_sfparecip_lv(live, src, mod) __builtin_riscv_tt_sfparecip_lv(live, src, 0, mod)
+#define __builtin_rvtt_bh_sfpmov_config(src) _XTT(__builtin_riscv_tt_sfpmov(src, 0, 0))
+#define __builtin_rvtt_bh_sfparecip(src, mod) _XTT(__builtin_riscv_tt_sfparecip(src, 0, mod))
+#define __builtin_rvtt_bh_sfparecip_lv(live, src, mod) _XTT(__builtin_riscv_tt_sfparecip_lv(live, src, 0, mod))
 #define __builtin_rvtt_bh_sfpgt(src, mod) __builtin_riscv_tt_sfpgt(src, 0, mod)
 #define __builtin_rvtt_bh_sfple(src, mod) __builtin_riscv_tt_sfple(src, 0, mod)
-#define __builtin_rvtt_bh_sfpmul24(a, b, mod) __builtin_riscv_tt_sfpmul24(a, b, 9, mod)
-#define __builtin_rvtt_bh_sfpmul24_lv(live, a, b, mod) __builtin_riscv_tt_sfpmul24_lv(live, a, b, 9, mod)
+#define __builtin_rvtt_bh_sfpmul24(a, b, mod) _XTT(__builtin_riscv_tt_sfpmul24(a, b, 9, mod))
+#define __builtin_rvtt_bh_sfpmul24_lv(live, a, b, mod) _XTT(__builtin_riscv_tt_sfpmul24_lv(live, a, b, 9, mod))
 
 /* LUT */
-#define __builtin_rvtt_sfplut(dst, l0, l1, l2, mod) __builtin_riscv_tt_sfplut(0, 0)
-#define __builtin_rvtt_sfplutfp32_3r(dst, l0, l1, l2, mod) __builtin_riscv_tt_sfplutfp32(dst, mod)
-#define __builtin_rvtt_sfplutfp32_6r(dst, l0, l1, l2, l4, l5, l6, mod) __builtin_riscv_tt_sfplutfp32(dst, mod)
+#define __builtin_rvtt_sfplut(dst, l0, l1, l2, mod) _XTT(__builtin_riscv_tt_sfplut(0, 0))
+#define __builtin_rvtt_sfplutfp32_3r(dst, l0, l1, l2, mod) _XTT(__builtin_riscv_tt_sfplutfp32(dst, mod))
+#define __builtin_rvtt_sfplutfp32_6r(dst, l0, l1, l2, l4, l5, l6, mod) _XTT(__builtin_riscv_tt_sfplutfp32(dst, mod))
 
 /* Stochastic rounding — intrinsic takes 5 args:
  * (rnd_mode, imm5, lreg_src_b, lreg_src_c, mod1) */
 #define __builtin_rvtt_bh_sfpstochrnd_i(buf, mode, x1, x2, x3, src, mod) \
-    __builtin_riscv_tt_sfpstochrnd(mode, 0, src, src, mod)
+    _XTT(__builtin_riscv_tt_sfpstochrnd(mode, 0, src, src, mod))
 #define __builtin_rvtt_bh_sfpstochrnd_v(mode, src_b, src_c, mod) \
-    __builtin_riscv_tt_sfpstochrnd(mode, 0, src_b, src_c, mod)
+    _XTT(__builtin_riscv_tt_sfpstochrnd(mode, 0, src_b, src_c, mod))
 
 /* Swap / transpose */
-#define __builtin_rvtt_sfpswap(a, b, mod) __builtin_riscv_tt_sfpswap(a, 0, mod)
-#define __builtin_rvtt_sfptransp(a, b, c, d) __builtin_riscv_tt_sfptransp(a, 0, 0)
+#define __builtin_rvtt_sfpswap(a, b, mod) _XTT(__builtin_riscv_tt_sfpswap(a, 0, mod))
+#define __builtin_rvtt_sfptransp(a, b, c, d) _XTT(__builtin_riscv_tt_sfptransp(a, 0, 0))
 
 /* SFPSHFT2 */
-#define __builtin_rvtt_sfpshft2_e(dst, src, mod) __builtin_riscv_tt_sfpshft2(src, 0, mod)
+#define __builtin_rvtt_sfpshft2_e(dst, src, mod) _XTT(__builtin_riscv_tt_sfpshft2(src, 0, mod))
 
 #endif /* __riscv_xtttensixbh */
 
@@ -257,9 +250,9 @@ static inline unsigned int __builtin_rvtt_sfpshft_i(
 #define __builtin_rvtt_wh_sfpxloadi(buf, mod0, imm16, x1, x2) \
     __builtin_riscv_tt_sfploadi(mod0, imm16)
 
-#define __builtin_rvtt_wh_sfpmad(a, b, c, mod) __builtin_riscv_tt_sfpmad(a, b, c, mod)
-#define __builtin_rvtt_wh_sfpmul(a, b, mod) __builtin_riscv_tt_sfpmul(a, b, 9, mod)
-#define __builtin_rvtt_wh_sfpadd(a, b, mod) __builtin_riscv_tt_sfpadd(10, a, b, mod)
+#define __builtin_rvtt_wh_sfpmad(a, b, c, mod) _XTT(__builtin_riscv_tt_sfpmad(a, b, c, mod))
+#define __builtin_rvtt_wh_sfpmul(a, b, mod) _XTT(__builtin_riscv_tt_sfpmul(a, b, 9, mod))
+#define __builtin_rvtt_wh_sfpadd(a, b, mod) _XTT(__builtin_riscv_tt_sfpadd(10, a, b, mod))
 
 #define __builtin_rvtt_wh_sfpsetexp_i(buf, imm12, x1, x2, src) \
     __builtin_riscv_tt_sfpsetexp(src, imm12, 0)
@@ -301,8 +294,9 @@ static inline unsigned int __builtin_rvtt_sfpshft_i(
     (__builtin_riscv_tt_sfpsetcc(src, 0, 0), 0)
 
 /* sfpxcondi: conditional-branch from immediate condition.
- * Takes 1 arg (condition value) and returns it. */
-#define __builtin_rvtt_sfpxcondi(cond) (cond)
+ * Takes 1 arg (condition value) and returns as __xtt_vector.
+ * Cast through unsigned int since only uint↔xtt conversion is allowed. */
+#define __builtin_rvtt_sfpxcondi(cond) _XTT((unsigned int)(cond))
 
 /* sfpxbool: boolean operation on CC stack (AND/OR/NOT of conditions).
  * GCC lowers this to CC stack manipulation. For clang, return the combined result.
@@ -354,7 +348,7 @@ static inline void __builtin_rvtt_sfpwritelreg(unsigned int lreg, unsigned int v
 
 /* WH-specific missing builtins */
 #ifdef __riscv_xtttensixwh
-#define __builtin_rvtt_wh_sfpcast(src, mod) __builtin_riscv_tt_sfpcast(src, 0, mod)
+#define __builtin_rvtt_wh_sfpcast(src, mod) _XTT(__builtin_riscv_tt_sfpcast(src, 0, mod))
 #define __builtin_rvtt_wh_sfpsetsgn_i(buf, imm12, x1, x2, src) \
     __builtin_riscv_tt_sfpsetsgn(src, imm12, 0)
 #define __builtin_rvtt_wh_sfpsetsgn_v(dst, src) \
@@ -371,7 +365,7 @@ static inline void __builtin_rvtt_sfpwritelreg(unsigned int lreg, unsigned int v
 
 /* BH-specific missing builtins */
 #ifdef __riscv_xtttensixbh
-#define __builtin_rvtt_bh_sfpcast(src, mod) __builtin_riscv_tt_sfpcast(src, 0, mod)
+#define __builtin_rvtt_bh_sfpcast(src, mod) _XTT(__builtin_riscv_tt_sfpcast(src, 0, mod))
 #define __builtin_rvtt_bh_sfpconfig_v(src, mod) \
     __builtin_riscv_tt_sfpconfig(0, src, mod)
 #define __builtin_rvtt_bh_sfpxicmpv(a, b, mod) \
