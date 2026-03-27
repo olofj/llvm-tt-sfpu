@@ -199,6 +199,48 @@ define void @interleaved_horner_2row() {
 }
 """,
     },
+
+    "estrin_degree3": {
+        "desc": "Estrin degree-3 with register copies (independent sub-chains)",
+        "gcc_wh_insns": 9,  # Horner equivalent: load + 3*(mad+nop) + store
+        "gcc_wh_nops": 3,   # Horner would have 3 NOPs
+        "ir": """
+define void @estrin_degree3() {
+  %x = call i32 @llvm.riscv.tt.sfpload(i32 0, i32 0, i32 0)
+  %x_lo = call i32 @llvm.riscv.tt.sfpmov(i32 %x, i32 0, i32 0)
+  %x_hi = call i32 @llvm.riscv.tt.sfpmov(i32 %x, i32 0, i32 0)
+  %lo = call i32 @llvm.riscv.tt.sfpmad(i32 %x_lo, i32 8, i32 9, i32 0)
+  %hi = call i32 @llvm.riscv.tt.sfpmad(i32 %x_hi, i32 8, i32 10, i32 0)
+  %x2 = call i32 @llvm.riscv.tt.sfpmul(i32 %x, i32 %x, i32 9, i32 0)
+  %result = call i32 @llvm.riscv.tt.sfpmad(i32 %hi, i32 %x2, i32 %lo, i32 0)
+  call void @llvm.riscv.tt.sfpstore(i32 %result, i32 0, i32 0, i32 0)
+  ret void
+}
+""",
+    },
+
+    "estrin_degree5": {
+        "desc": "Estrin degree-5 with register copies (GELU-class)",
+        "gcc_wh_insns": 15,  # Horner equivalent: load + 5*(mad+nop) + store
+        "gcc_wh_nops": 5,    # Horner would have 5 NOPs
+        "ir": """
+define void @estrin_degree5() {
+  %x = call i32 @llvm.riscv.tt.sfpload(i32 0, i32 0, i32 0)
+  %x_lo = call i32 @llvm.riscv.tt.sfpmov(i32 %x, i32 0, i32 0)
+  %x_mid = call i32 @llvm.riscv.tt.sfpmov(i32 %x, i32 0, i32 0)
+  %x_hi = call i32 @llvm.riscv.tt.sfpmov(i32 %x, i32 0, i32 0)
+  %lo = call i32 @llvm.riscv.tt.sfpmad(i32 %x_lo, i32 8, i32 9, i32 0)
+  %mid = call i32 @llvm.riscv.tt.sfpmad(i32 %x_mid, i32 8, i32 10, i32 0)
+  %hi = call i32 @llvm.riscv.tt.sfpmad(i32 %x_hi, i32 8, i32 9, i32 0)
+  %x2 = call i32 @llvm.riscv.tt.sfpmul(i32 %x, i32 %x, i32 9, i32 0)
+  %x4 = call i32 @llvm.riscv.tt.sfpmul(i32 %x2, i32 %x2, i32 9, i32 0)
+  %t1 = call i32 @llvm.riscv.tt.sfpmad(i32 %hi, i32 %x4, i32 %mid, i32 0)
+  %result = call i32 @llvm.riscv.tt.sfpmad(i32 %t1, i32 %x2, i32 %lo, i32 0)
+  call void @llvm.riscv.tt.sfpstore(i32 %result, i32 0, i32 0, i32 0)
+  ret void
+}
+""",
+    },
 }
 
 

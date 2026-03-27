@@ -286,18 +286,14 @@ bool RISCVXttSFPUReplay::runOnMachineFunction(MachineFunction &MF) {
         // Encode: (start_idx << 14) | (len << 4) | (0 << 1) | (1 << 0)
         unsigned ReplayLoadWord = (Slot << 14) | (Cand->Length << 4) | 0x01;
 
-        // REPLAY is a Tensix control instruction (opcode 0x04), not an SFPU
-        // instruction. It is not yet defined in RISCVInstrInfoXttSFPU.td.
-        // When added, the encoding is:
-        //   (0x04 << 24) | (start_idx << 14) | (len << 4) |
-        //   (execute_while_loading << 1) | (load_mode << 0)
-        //
-        // For now, emit SFPNOP as a placeholder. The clone deletion still
-        // saves code size. The SFPNOP costs 1 cycle (same as REPLAY would).
-        // TODO: Add TTREPLAY instruction to TableGen and emit it here.
+        // TTREPLAY is defined in RISCVInstrInfoXttSFPU.td (opcode 0x04).
+        // Emit REPLAY in "load" mode: record following instructions.
         (void)ReplayLoadWord;
-        BuildMI(MBB, *FirstInOriginal, DL, TII->get(RISCV::SFPNOP))
-            .setMIFlag(MachineInstr::MIFlag::FrameSetup);  // Tag for identification
+        BuildMI(MBB, *FirstInOriginal, DL, TII->get(RISCV::TTREPLAY))
+            .addImm(Slot)            // start_idx
+            .addImm(Cand->Length)    // len
+            .addImm(0)               // exec_while_load = 0
+            .addImm(1);              // load_mode = 1 (record)
       }
 
       // Replace each clone with REPLAY(slot, len, 1, 0) = "execute" mode
@@ -311,11 +307,13 @@ bool RISCVXttSFPUReplay::runOnMachineFunction(MachineFunction &MF) {
         // Encode: (start_idx << 14) | (len << 4) | (1 << 1) | (0 << 0)
         unsigned ReplayExecWord = (Slot << 14) | (Cand->Length << 4) | 0x02;
 
-        // Insert REPLAY-execute before the clone, then delete the clone.
-        // Same placeholder approach as load mode above.
+        // Insert REPLAY in "execute" mode before the clone, then delete it.
         (void)ReplayExecWord;
-        BuildMI(MBB, *FirstInClone, DL, TII->get(RISCV::SFPNOP))
-            .setMIFlag(MachineInstr::MIFlag::FrameDestroy);  // Tag for identification
+        BuildMI(MBB, *FirstInClone, DL, TII->get(RISCV::TTREPLAY))
+            .addImm(Slot)            // start_idx
+            .addImm(Cand->Length)    // len
+            .addImm(1)               // exec_while_load = 1 (execute)
+            .addImm(0);              // load_mode = 0 (not recording)
 
         // Delete the clone instructions
         for (unsigned J = 0; J < Cand->Length && CloneStart + J < SFPUInstrs.size(); ++J) {
