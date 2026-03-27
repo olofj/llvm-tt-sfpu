@@ -20,13 +20,71 @@
 
 #ifdef __clang__
 
+/* ---- __xtt_vector type ---- */
+#ifdef __cplusplus
+/* C++: distinct struct type to prevent vFloat(int) ambiguity */
+struct __xtt_vector {
+    unsigned int v;
+    __xtt_vector() = default;
+    constexpr __xtt_vector(unsigned int val) : v(val) {}
+    constexpr operator unsigned int() const { return v; }
+};
+#else
+/* C: simple typedef (no overload ambiguity concern) */
+typedef unsigned int __xtt_vector;
+#endif
+
+/* ---- __has_builtin override ---- */
+/* sfpi.h checks __has_builtin(__builtin_rvtt_synth_opcode) and errors if
+ * false. Since we provide all GCC SFPI builtins via macro mappings below,
+ * we override __has_builtin to always return true. This is safe because
+ * SFPU kernel code doesn't use __has_builtin for non-SFPI purposes. */
+#pragma push_macro("__has_builtin")
+#undef __has_builtin
+#define __has_builtin(x) 1
+
+/* ---- Type fixups for clang on riscv32 ---- */
+/* On riscv32, clang maps int32_t = int and uint32_t = unsigned int.
+ * GCC maps them differently (int32_t = long), allowing sfpi_fp16.h to
+ * define separate constructors for int and int32_t. We make int32_t = long
+ * to match GCC's type mapping and avoid constructor redeclaration errors. */
+#define __INT32_TYPE__ long
+#define __UINT32_TYPE__ unsigned long
+
+/* ---- C++ only: ckernel stub and 6-arg inline function stubs ---- */
+#ifdef __cplusplus
+/* sfpi_builtins.h's self-referencing macros expand to forms containing
+ * ckernel::instrn_buffer. Provide a stub so the token resolves. */
+namespace ckernel { static volatile unsigned int instrn_buffer[1] = {0}; }
+
+/* sfpi_builtins.h lines 14-16 define macros like:
+ *   __builtin_rvtt_sfpxicmps(v,i,mod1) → __builtin_rvtt_sfpxicmps(buf,v,i,0,0,mod1)
+ * The self-reference prevention causes the 6-arg form to survive as a function
+ * call. We provide inline functions matching the 6-arg signature. */
+__attribute__((always_inline))
+static inline int __builtin_rvtt_sfpxicmps(
+    volatile unsigned int*, unsigned int v, unsigned int i,
+    unsigned int, unsigned int, unsigned int mod1) {
+    __builtin_riscv_tt_sfpsetcc(v, i, mod1);
+    return 0;
+}
+__attribute__((always_inline))
+static inline unsigned int __builtin_rvtt_sfpshft_i(
+    volatile unsigned int*, unsigned int dst, unsigned int imm12,
+    unsigned int, unsigned int, unsigned int mod1) {
+    return __builtin_riscv_tt_sfpshft(dst, imm12, mod1);
+}
+#endif /* __cplusplus */
+
 /* ---- Architecture detection ---- */
 /* GCC: __riscv_xtttensixwh, __riscv_xtttensixbh
- * LLVM: TBD — for now use target attribute check */
+ * LLVM: set via -D__SFPU_BH__ or -D__SFPU_WH__ */
 #if defined(__xttsfpu_bh) || defined(__SFPU_BH__)
 #define __riscv_xtttensixbh 1
+#define __riscv_tt_blackhole 1
 #elif defined(__xttsfpu_wh) || defined(__SFPU_WH__)
 #define __riscv_xtttensixwh 1
+#define __riscv_tt_wormhole 1
 #endif
 
 /* ---- Core instruction builtins ---- */
@@ -67,6 +125,10 @@
 #define __builtin_rvtt_sfpand(dst, src) __builtin_riscv_tt_sfpand(src, 0, 0)
 #define __builtin_rvtt_sfpor(dst, src) __builtin_riscv_tt_sfpor(src, 0, 0)
 #define __builtin_rvtt_sfpxor(dst, src) __builtin_riscv_tt_sfpxor(src, 0, 0)
+
+/* Shift vector (variable amount) */
+#define __builtin_rvtt_sfpshft_v(dst, src, mod) \
+    __builtin_riscv_tt_sfpshft(src, 0, mod)
 
 /* Cast / rounding */
 #define __builtin_rvtt_sfpcast(src, mod) __builtin_riscv_tt_sfpcast(src, 0, mod)
@@ -136,15 +198,18 @@
 #define __builtin_rvtt_bh_sfpshft_v(dst, src, mod) \
     __builtin_riscv_tt_sfpshft(src, 0, mod)
 
-/* Comparison BH */
+/* Comparison BH — these set the CC and return a dummy condition result (0).
+ * In GCC, sfpxfcmps/v/sfpxicmps return int (condition); in LLVM, sfpsetcc is void.
+ * The return value is only used by sfpxbool for boolean CC operations. */
 #define __builtin_rvtt_bh_sfpxfcmps(buf, v, f, x1, x2, mod) \
-    __builtin_riscv_tt_sfpsetcc(v, f, mod)
+    (__builtin_riscv_tt_sfpsetcc(v, f, mod), 0)
 #define __builtin_rvtt_bh_sfpxfcmpv(a, b, mod) \
-    __builtin_riscv_tt_sfpsetcc(a, 0, mod)
+    (__builtin_riscv_tt_sfpsetcc(a, 0, mod), 0)
 #define __builtin_rvtt_bh_sfpxicmps(buf, v, i, x1, x2, mod) \
-    __builtin_riscv_tt_sfpsetcc(v, i, mod)
+    (__builtin_riscv_tt_sfpsetcc(v, i, mod), 0)
 
 /* BH-specific */
+#define __builtin_rvtt_bh_sfpmov_config(src) __builtin_riscv_tt_sfpmov(src, 0, 0)
 #define __builtin_rvtt_bh_sfparecip(src, mod) __builtin_riscv_tt_sfparecip(src, 0, mod)
 #define __builtin_rvtt_bh_sfparecip_lv(live, src, mod) __builtin_riscv_tt_sfparecip_lv(live, src, 0, mod)
 #define __builtin_rvtt_bh_sfpgt(src, mod) __builtin_riscv_tt_sfpgt(src, 0, mod)
@@ -157,9 +222,10 @@
 #define __builtin_rvtt_sfplutfp32_3r(dst, l0, l1, l2, mod) __builtin_riscv_tt_sfplutfp32(dst, mod)
 #define __builtin_rvtt_sfplutfp32_6r(dst, l0, l1, l2, l4, l5, l6, mod) __builtin_riscv_tt_sfplutfp32(dst, mod)
 
-/* Stochastic rounding */
+/* Stochastic rounding — intrinsic takes 5 args:
+ * (rnd_mode, imm5, lreg_src_b, lreg_src_c, mod1) */
 #define __builtin_rvtt_bh_sfpstochrnd_i(buf, mode, x1, x2, x3, src, mod) \
-    __builtin_riscv_tt_sfpstochrnd(mode, 0, src, 0, mod)
+    __builtin_riscv_tt_sfpstochrnd(mode, 0, src, src, mod)
 #define __builtin_rvtt_bh_sfpstochrnd_v(mode, src_b, src_c, mod) \
     __builtin_riscv_tt_sfpstochrnd(mode, 0, src_b, src_c, mod)
 
@@ -215,29 +281,32 @@
  * as inline sequences of the primitive CC-stack builtins. */
 
 /* sfpassign_lv: conditional assignment (used in v_if/v_else regions)
- * GCC lowers this to a predicated move. For clang, the _lv builtin
- * variants handle this — sfpassign_lv(dst, src) is just sfpmov_lv. */
+ * Returns __xtt_vector to match GCC's return type for ternary expressions. */
 #define __builtin_rvtt_sfpassign_lv(live, src) \
-    __builtin_riscv_tt_sfpmov_lv(live, src, 0, 0)
+    ((__xtt_vector)__builtin_riscv_tt_sfpmov_lv(live, src, 0, 0))
 
-/* sfpxvif: begin a v_if region. GCC pushes CC then sets condition.
- * The SFPI C++ API handles this via SFPPUSHC + SFPSETCC, so we
- * define it as a no-op — the C++ wrapper manages the CC stack. */
-#define __builtin_rvtt_sfpxvif(cc) /* handled by sfpi.h C++ wrappers */
+/* sfpxvif: begin a v_if region. Returns a dependency token (int). */
+#define __builtin_rvtt_sfpxvif() 0
 
-/* sfpxcondb/sfpxcondi: conditional-branch helpers used by SFPI's
- * v_if/v_elseif implementation. These are GCC gimple builtins that
- * get lowered to SFPSETCC+SFPCOMPC sequences. For clang, the SFPI
- * C++ headers manage this flow directly. Stub as no-ops. */
-#define __builtin_rvtt_sfpxcondb(src, mod) /* lowered by sfpi.h */
-#define __builtin_rvtt_sfpxcondi(imm, mod) /* lowered by sfpi.h */
+/* sfpxcondb: conditional-branch from register and dependency token.
+ * GCC lowers to SFPSETCC. Returns dummy condition result. */
+#define __builtin_rvtt_sfpxcondb(src, dep) \
+    (__builtin_riscv_tt_sfpsetcc(src, 0, 0), 0)
 
-/* sfpxbool: boolean operation on CC stack. Stub for now. */
-#define __builtin_rvtt_sfpxbool(op, result) (result)
+/* sfpxcondi: conditional-branch from immediate condition.
+ * Takes 1 arg (condition value) and returns it. */
+#define __builtin_rvtt_sfpxcondi(cond) (cond)
 
-/* sfpxicmpv: integer compare vector — maps to sfpsetcc with int mode */
+/* sfpxbool: boolean operation on CC stack (AND/OR/NOT of conditions).
+ * GCC lowers this to CC stack manipulation. For clang, return the combined result.
+ * The 'op' arg selects AND(0)/OR(1)/NOT(2), a and b are the condition results. */
+#define __builtin_rvtt_sfpxbool(op, a, b) \
+    ((op) == 0 ? ((a) && (b)) : (op) == 1 ? ((a) || (b)) : !(a))
+
+/* sfpxicmpv: integer compare vector — maps to sfpsetcc with int mode.
+ * Returns 0 (dummy condition result) like sfpxfcmps/v. */
 #define __builtin_rvtt_sfpxicmpv(a, b, mod) \
-    __builtin_riscv_tt_sfpsetcc(a, 0, mod)
+    (__builtin_riscv_tt_sfpsetcc(a, 0, mod), 0)
 
 /* sfpreadlreg/sfpwritelreg: L-register read/write helpers.
  * In GCC, these are direct register accesses. For LLVM, we use inline asm
@@ -261,6 +330,16 @@ static inline void __builtin_rvtt_sfpwritelreg(unsigned int lreg, unsigned int v
  * The write counter manages Dst tile addressing. */
 #define __builtin_rvtt_ttincrwc(cr, incr, mask, val) \
     __asm__ volatile("# ttincrwc placeholder" ::: "memory")
+
+/* sfpselect2/sfpselect4: select vector lanes from multi-lane results.
+ * Used by sfpi_lib.h for LUTFP32 results. Stub: return src unchanged. */
+#define __builtin_rvtt_sfpselect2(src, idx) (src)
+#define __builtin_rvtt_sfpselect4(src, idx) (src)
+
+/* sfpshft2_subvec_shfl1: SFPSHFT2 in shuffle mode.
+ * Maps to sfpshft2 with the specified mod1. */
+#define __builtin_rvtt_sfpshft2_subvec_shfl1(src, mod1) \
+    __builtin_riscv_tt_sfpshft2(src, 0, mod1)
 
 /* ttreplay: replay buffer control. Stub for initial bring-up. */
 #define __builtin_rvtt_ttreplay(buf, start, len, exec_while_loading) \
