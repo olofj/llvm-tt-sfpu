@@ -22,7 +22,7 @@ target triple = "riscv32-unknown-unknown"
 declare i32 @llvm.riscv.tt.sfploadi(i32, i32)
 declare i32 @llvm.riscv.tt.sfpload(i32, i32, i32)
 declare void @llvm.riscv.tt.sfpstore(i32, i32, i32, i32)
-declare i32 @llvm.riscv.tt.sfplut(i32, i32, i32)
+declare i32 @llvm.riscv.tt.sfplut(i32, i32)
 declare i32 @llvm.riscv.tt.sfpmad(i32, i32, i32, i32)
 declare void @llvm.riscv.tt.sfpnop()
 
@@ -51,7 +51,7 @@ entry:
 
   ; LUT lookup: uses L0,L1,L2 as coefficients, val as input
   ; The SFPLUT instruction reads from LRegs set up by SFPLOADI
-  %lut_result = call i32 @llvm.riscv.tt.sfplut(i32 0, i32 0, i32 0)
+  %lut_result = call i32 @llvm.riscv.tt.sfplut(i32 0, i32 0)
 
   ; Store result back to Dst row 0
   call void @llvm.riscv.tt.sfpstore(i32 %lut_result, i32 0, i32 0, i32 0)
@@ -80,7 +80,7 @@ entry:
   %val = call i32 @llvm.riscv.tt.sfpload(i32 0, i32 0, i32 0)
 
   ; LUT lookup
-  %lut_out = call i32 @llvm.riscv.tt.sfplut(i32 0, i32 0, i32 0)
+  %lut_out = call i32 @llvm.riscv.tt.sfplut(i32 0, i32 0)
 
   ; Polynomial refinement: result = lut_out * val + correction
   ; Uses L9 (CREG 0.0) as addend for simple multiply, L10 (CREG 1.0)
@@ -113,12 +113,12 @@ entry:
 
   ; Row 0
   %v0 = call i32 @llvm.riscv.tt.sfpload(i32 0, i32 0, i32 0)
-  %r0 = call i32 @llvm.riscv.tt.sfplut(i32 0, i32 0, i32 0)
+  %r0 = call i32 @llvm.riscv.tt.sfplut(i32 0, i32 0)
   call void @llvm.riscv.tt.sfpstore(i32 %r0, i32 0, i32 0, i32 0)
 
   ; Row 1 (addr=16 = next Dst row on BH)
   %v1 = call i32 @llvm.riscv.tt.sfpload(i32 0, i32 0, i32 16)
-  %r1 = call i32 @llvm.riscv.tt.sfplut(i32 0, i32 0, i32 0)
+  %r1 = call i32 @llvm.riscv.tt.sfplut(i32 0, i32 0)
   call void @llvm.riscv.tt.sfpstore(i32 %r1, i32 0, i32 0, i32 16)
 
   ret void

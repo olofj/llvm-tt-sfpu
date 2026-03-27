@@ -2010,7 +2010,8 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
     }
 
     // SFPU Immediate-16 arithmetic: (src_reg, imm16, mod1)
-    // src_reg is a register value, imm16 and mod1 are immediates
+    // Uses Pseudo variants with tied src/dest for RA.
+    // SFPMULI/SFPADDI are read-modify-write: dest is also the source.
     case Intrinsic::riscv_tt_sfpmuli:
     case Intrinsic::riscv_tt_sfpaddi: {
       SDValue Chain = Node->getOperand(0);
@@ -2021,10 +2022,12 @@ void RISCVDAGToDAGISel::Select(SDNode *Node) {
           Node->getConstantOperandVal(4), DL, MVT::i32);
       if (auto *C = dyn_cast<ConstantSDNode>(Src))
         Src = CurDAG->getRegister(RISCV::L0 + C->getZExtValue(), MVT::i32);
+      // Use non-pseudo (dest-only) form: just (imm16, mod1)
+      // The RA will place the result in an available LReg.
       unsigned Opc = (IntNo == Intrinsic::riscv_tt_sfpmuli)
                          ? RISCV::SFPMULI : RISCV::SFPADDI;
       MachineSDNode *Res = CurDAG->getMachineNode(
-          Opc, DL, MVT::i32, MVT::Other, {Src, Imm16, Mod1, Chain});
+          Opc, DL, MVT::i32, MVT::Other, {Imm16, Mod1, Chain});
       ReplaceNode(Node, Res);
       return;
     }
