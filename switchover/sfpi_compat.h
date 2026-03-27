@@ -22,7 +22,15 @@
 
 /* ---- __xtt_vector type ---- */
 #ifdef __cplusplus
-/* C++: distinct struct type to prevent vFloat(int) ambiguity */
+/* C++: distinct struct type that allows implicit conversion both ways.
+ * KNOWN ISSUE: At -O2, LLVM's optimizer sees through the struct and
+ * flattens __xtt_vector{val}.v to just val (unsigned int). This causes
+ * vFloat assignment to go through the float constructor instead of the
+ * __xtt_vector constructor, producing incorrect uitofp+bitcast+sfploadi
+ * chains. The correct fix is making __xtt_vector a clang target type
+ * (like GCC's XTT32SImode), but that requires deeper compiler changes.
+ * For now, sfpi.h syntax-checks correctly and simple kernels work.
+ * Real kernel compilation needs the opaque type or -O1. */
 struct __xtt_vector {
     unsigned int v;
     __xtt_vector() = default;
