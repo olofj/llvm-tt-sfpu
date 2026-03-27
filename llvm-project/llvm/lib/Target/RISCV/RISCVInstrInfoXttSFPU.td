@@ -17,15 +17,15 @@
 // Feature predicates
 //===----------------------------------------------------------------------===//
 
-def HasXttSFPU   : Predicate<"Subtarget->hasXttSFPU()">,
+def HasXttSFPU   : Predicate<"Subtarget->hasVendorXttSFPU()">,
                    AssemblerPredicate<(all_of FeatureVendorXttSFPU),
                    "'XttSFPU' (Tenstorrent SFPU Vector Unit)">;
 
-def HasXttSFPUBH : Predicate<"Subtarget->hasXttSFPUBH()">,
+def HasXttSFPUBH : Predicate<"Subtarget->hasVendorXttSFPUBH()">,
                    AssemblerPredicate<(all_of FeatureVendorXttSFPUBH),
                    "'XttSFPU-BH' (Tenstorrent SFPU Blackhole extensions)">;
 
-def HasXttSFPUWH : Predicate<"Subtarget->hasXttSFPUWH()">,
+def HasXttSFPUWH : Predicate<"Subtarget->hasVendorXttSFPUWH()">,
                    AssemblerPredicate<(all_of FeatureVendorXttSFPUWH),
                    "'XttSFPU-WH' (Tenstorrent SFPU Wormhole extensions)">;
 
@@ -39,54 +39,59 @@ def SFPUDstOp : RegisterOperand<SFPURegs>;
 def SFPUStoreOp : RegisterOperand<SFPUStoreRegs>;
 
 // Immediate operands
+// Each inherits from Operand<i32> (for encoding/asm) AND TImmLeaf (for ISel
+// pattern matching). TImmLeaf matches TargetConstant nodes produced by ImmArg
+// on intrinsic definitions, with a range-checking predicate that enforces the
+// correct bit width for each Tensix immediate field.
+
 def simm12_sfpu : Operand<i32> {
   let ParserMatchClass = SImmAsmOperand<12>;
   let DecoderMethod = "decodeSImmOperand<12>";
 }
 
-def uimm12_sfpu : Operand<i32> {
-  let ParserMatchClass = UImmAsmOperand<12>;
-  let DecoderMethod = "decodeUImmOperand<12>";
-}
-
-def uimm16_sfpu : Operand<i32> {
-  let ParserMatchClass = UImmAsmOperand<16>;
-  let DecoderMethod = "decodeUImmOperand<16>";
-}
-
-def uimm8_sfpu : Operand<i32> {
-  let ParserMatchClass = UImmAsmOperand<8>;
-  let DecoderMethod = "decodeUImmOperand<8>";
-}
-
-def uimm4_sfpu : Operand<i32> {
-  let ParserMatchClass = UImmAsmOperand<4>;
-  let DecoderMethod = "decodeUImmOperand<4>";
-}
-
-def uimm13_sfpu : Operand<i32> {    // BH address field
-  let ParserMatchClass = UImmAsmOperand<13>;
-  let DecoderMethod = "decodeUImmOperand<13>";
-}
-
-def uimm14_sfpu : Operand<i32> {    // WH address field
-  let ParserMatchClass = UImmAsmOperand<14>;
-  let DecoderMethod = "decodeUImmOperand<14>";
-}
-
-def uimm3_sfpu : Operand<i32> {     // BH addr_mode
-  let ParserMatchClass = UImmAsmOperand<3>;
-  let DecoderMethod = "decodeUImmOperand<3>";
-}
-
-def uimm2_sfpu : Operand<i32> {     // WH addr_mode
+def uimm2_sfpu : Operand<i32>, TImmLeaf<i32, [{return isUInt<2>(Imm);}]> {
   let ParserMatchClass = UImmAsmOperand<2>;
   let DecoderMethod = "decodeUImmOperand<2>";
 }
 
-def uimm5_sfpu : Operand<i32> {     // StochRnd imm5 (within imm8)
+def uimm3_sfpu : Operand<i32>, TImmLeaf<i32, [{return isUInt<3>(Imm);}]> {
+  let ParserMatchClass = UImmAsmOperand<3>;
+  let DecoderMethod = "decodeUImmOperand<3>";
+}
+
+def uimm4_sfpu : Operand<i32>, TImmLeaf<i32, [{return isUInt<4>(Imm);}]> {
+  let ParserMatchClass = UImmAsmOperand<4>;
+  let DecoderMethod = "decodeUImmOperand<4>";
+}
+
+def uimm5_sfpu : Operand<i32>, TImmLeaf<i32, [{return isUInt<5>(Imm);}]> {
   let ParserMatchClass = UImmAsmOperand<5>;
   let DecoderMethod = "decodeUImmOperand<5>";
+}
+
+def uimm8_sfpu : Operand<i32>, TImmLeaf<i32, [{return isUInt<8>(Imm);}]> {
+  let ParserMatchClass = UImmAsmOperand<8>;
+  let DecoderMethod = "decodeUImmOperand<8>";
+}
+
+def uimm12_sfpu : Operand<i32>, TImmLeaf<i32, [{return isUInt<12>(Imm);}]> {
+  let ParserMatchClass = UImmAsmOperand<12>;
+  let DecoderMethod = "decodeUImmOperand<12>";
+}
+
+def uimm13_sfpu : Operand<i32>, TImmLeaf<i32, [{return isUInt<13>(Imm);}]> {
+  let ParserMatchClass = UImmAsmOperand<13>;
+  let DecoderMethod = "decodeUImmOperand<13>";
+}
+
+def uimm14_sfpu : Operand<i32>, TImmLeaf<i32, [{return isUInt<14>(Imm);}]> {
+  let ParserMatchClass = UImmAsmOperand<14>;
+  let DecoderMethod = "decodeUImmOperand<14>";
+}
+
+def uimm16_sfpu : Operand<i32>, TImmLeaf<i32, [{return isUInt<16>(Imm);}]> {
+  let ParserMatchClass = UImmAsmOperand<16>;
+  let DecoderMethod = "decodeUImmOperand<16>";
 }
 
 //===----------------------------------------------------------------------===//
@@ -135,12 +140,14 @@ class SFPUUnaryReg<bits<8> opcode, string opcodestr>
                      uimm4_sfpu:$mod1),
                 "$lreg_dest, $lreg_c, $imm12, $mod1">;
 
-// Variant for CC/control instructions that don't write a register
+// Variant for CC/control instructions that don't write a register.
+// $lreg_dest is an immediate selector (bits[7:4]), NOT a register destination.
+// For SFPSETCC it selects the CC mode, for SFPPUSHC/SFPPOPC it's unused (0).
 class SFPUUnaryCC<bits<8> opcode, string opcodestr>
     : SFPUUnary<opcode, opcodestr,
                 (outs),
                 (ins uimm12_sfpu:$imm12, SFPUAllRegs:$lreg_c,
-                     SFPURegs:$lreg_dest, uimm4_sfpu:$mod1),
+                     uimm4_sfpu:$lreg_dest, uimm4_sfpu:$mod1),
                 "$lreg_dest, $lreg_c, $imm12, $mod1">;
 
 //---
@@ -373,7 +380,6 @@ def SFPLOAD_BH : SFPULoadBH<0x70, "sfpload",
     "$lreg_ind, $mod0, $addr_mode, $addr"> {
   let mayLoad = 1;
   let Defs = [];
-  let Sched = [WriteSFPULoad, ReadSFPUSrc];
 }
 
 def SFPLOADI : SFPULoadI<0x71, "sfploadi",
@@ -381,7 +387,6 @@ def SFPLOADI : SFPULoadI<0x71, "sfploadi",
     (ins uimm4_sfpu:$mod0, uimm16_sfpu:$imm16),
     "$lreg_ind, $mod0, $imm16"> {
   let mayLoad = 1;
-  let Sched = [WriteSFPULoad];
 }
 
 def SFPSTORE_BH : SFPULoadBH<0x72, "sfpstore",
@@ -390,7 +395,6 @@ def SFPSTORE_BH : SFPULoadBH<0x72, "sfpstore",
          uimm3_sfpu:$addr_mode, uimm13_sfpu:$addr),
     "$lreg_ind, $mod0, $addr_mode, $addr"> {
   let mayStore = 1;
-  let Sched = [WriteSFPUStore, ReadSFPUSrc];
 }
 
 def SFPLUT : SFPULut<0x73, "sfplut",
@@ -398,7 +402,6 @@ def SFPLUT : SFPULut<0x73, "sfplut",
     (ins uimm4_sfpu:$mod0, uimm16_sfpu:$dest_reg_addr),
     "$lreg_ind, $mod0, $dest_reg_addr"> {
   let mayLoad = 1;
-  let Sched = [WriteSFPULoad, ReadSFPUSrc];
 }
 
 def SFPLOADMACRO_BH : SFPULoadMacroBH<0x93, "sfploadmacro",
@@ -409,7 +412,6 @@ def SFPLOADMACRO_BH : SFPULoadMacroBH<0x93, "sfploadmacro",
   let mayLoad = 1;
   // Writes L16 (macro staging register)
   let Defs = [L16];
-  let Sched = [WriteSFPULoad];
 }
 
 //--- Immediate-16 Arithmetic Instructions ---
@@ -418,112 +420,98 @@ def SFPMULI : SFPUImm16<0x74, "sfpmuli",
     (outs SFPURegs:$lreg_dest),
     (ins uimm16_sfpu:$imm16, uimm4_sfpu:$mod1),
     "$lreg_dest, $imm16, $mod1"> {
-  let Sched = [WriteSFPUMAD, ReadSFPUSrc];
 }
 
 def SFPADDI : SFPUImm16<0x75, "sfpaddi",
     (outs SFPURegs:$lreg_dest),
     (ins uimm16_sfpu:$imm16, uimm4_sfpu:$mod1),
     "$lreg_dest, $imm16, $mod1"> {
-  let Sched = [WriteSFPUMAD, ReadSFPUSrc];
+}
+
+// Pseudo variants with tied src/dest for ISel (read-modify-write semantics).
+// The intrinsic passes the dest register as an input because it's both read and
+// written. The Constraints tie ensures regalloc keeps src and dest in the same
+// physical register.
+let Constraints = "$lreg_dest = $lreg_src" in {
+  def PseudoSFPMULI : SFPUImm16<0x74, "sfpmuli",
+      (outs SFPURegs:$lreg_dest),
+      (ins SFPURegs:$lreg_src, uimm16_sfpu:$imm16, uimm4_sfpu:$mod1),
+      "$lreg_dest, $imm16, $mod1">;
+  def PseudoSFPADDI : SFPUImm16<0x75, "sfpaddi",
+      (outs SFPURegs:$lreg_dest),
+      (ins SFPURegs:$lreg_src, uimm16_sfpu:$imm16, uimm4_sfpu:$mod1),
+      "$lreg_dest, $imm16, $mod1">;
 }
 
 //--- Standard Unary Instructions (simple unit, 1 cycle) ---
 
-def SFPDIVP2  : SFPUUnaryReg<0x76, "sfpdivp2">,
-                Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
+def SFPDIVP2  : SFPUUnaryReg<0x76, "sfpdivp2">;
 
-def SFPEXEXP  : SFPUUnaryReg<0x77, "sfpexexp">,
-                Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
+def SFPEXEXP  : SFPUUnaryReg<0x77, "sfpexexp">;
 
-def SFPEXMAN  : SFPUUnaryReg<0x78, "sfpexman">,
-                Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
+def SFPEXMAN  : SFPUUnaryReg<0x78, "sfpexman">;
 
-def SFPIADD   : SFPUUnaryReg<0x79, "sfpiadd">,
-                Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
+def SFPIADD   : SFPUUnaryReg<0x79, "sfpiadd">;
 
-def SFPSHFT   : SFPUUnaryReg<0x7A, "sfpshft">,
-                Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
+def SFPSHFT   : SFPUUnaryReg<0x7A, "sfpshft">;
 
-def SFPSETCC  : SFPUUnaryCC<0x7B, "sfpsetcc">,
-                Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
+def SFPSETCC  : SFPUUnaryCC<0x7B, "sfpsetcc">;
 
-def SFPMOV    : SFPUUnaryReg<0x7C, "sfpmov">,
-                Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
+def SFPMOV    : SFPUUnaryReg<0x7C, "sfpmov">;
 
-def SFPABS    : SFPUUnaryReg<0x7D, "sfpabs">,
-                Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
+def SFPABS    : SFPUUnaryReg<0x7D, "sfpabs">;
 
-def SFPAND    : SFPUUnaryReg<0x7E, "sfpand">,
-                Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
+def SFPAND    : SFPUUnaryReg<0x7E, "sfpand">;
 
-def SFPOR     : SFPUUnaryReg<0x7F, "sfpor">,
-                Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
+def SFPOR     : SFPUUnaryReg<0x7F, "sfpor">;
 
-def SFPNOT    : SFPUUnaryReg<0x80, "sfpnot">,
-                Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
+def SFPNOT    : SFPUUnaryReg<0x80, "sfpnot">;
 
-def SFPLZ     : SFPUUnaryReg<0x81, "sfplz">,
-                Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
+def SFPLZ     : SFPUUnaryReg<0x81, "sfplz">;
 
-def SFPSETEXP : SFPUUnaryReg<0x82, "sfpsetexp">,
-                Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
+def SFPSETEXP : SFPUUnaryReg<0x82, "sfpsetexp">;
 
-def SFPSETMAN : SFPUUnaryReg<0x83, "sfpsetman">,
-                Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
+def SFPSETMAN : SFPUUnaryReg<0x83, "sfpsetman">;
 
 //--- 3-Operand Arithmetic Instructions (MAD unit, 2 cycles) ---
 
-def SFPMAD : SFPU3Op<0x84, "sfpmad">,
-             Sched<[WriteSFPUMAD, ReadSFPUSrc, ReadSFPUSrc, ReadSFPUSrc]>;
+def SFPMAD : SFPU3Op<0x84, "sfpmad">;
 
-def SFPADD : SFPU3Op<0x85, "sfpadd">,
-             Sched<[WriteSFPUMAD, ReadSFPUSrc, ReadSFPUSrc, ReadSFPUSrc]>;
+def SFPADD : SFPU3Op<0x85, "sfpadd">;
 
-def SFPMUL : SFPU3Op<0x86, "sfpmul">,
-             Sched<[WriteSFPUMAD, ReadSFPUSrc, ReadSFPUSrc, ReadSFPUSrc]>;
+def SFPMUL : SFPU3Op<0x86, "sfpmul">;
 
 //--- CC Stack / Predication Instructions (simple unit, 1 cycle) ---
 
-def SFPPUSHC  : SFPUUnaryCC<0x87, "sfppushc">,
-                Sched<[WriteSFPUSimple]>;
+def SFPPUSHC  : SFPUUnaryCC<0x87, "sfppushc">;
 
-def SFPPOPC   : SFPUUnaryCC<0x88, "sfppopc">,
-                Sched<[WriteSFPUSimple]>;
+def SFPPOPC   : SFPUUnaryCC<0x88, "sfppopc">;
 
-def SFPSETSGN : SFPUUnaryReg<0x89, "sfpsetsgn">,
-                Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
+def SFPSETSGN : SFPUUnaryReg<0x89, "sfpsetsgn">;
 
-def SFPENCC   : SFPUUnaryCC<0x8A, "sfpencc">,
-                Sched<[WriteSFPUSimple]>;
+def SFPENCC   : SFPUUnaryCC<0x8A, "sfpencc">;
 
-def SFPCOMPC  : SFPUUnaryCC<0x8B, "sfpcompc">,
-                Sched<[WriteSFPUSimple]>;
+def SFPCOMPC  : SFPUUnaryCC<0x8B, "sfpcompc">;
 
 //--- Transpose / Cross-Lane (simple unit, 1 cycle) ---
 
-def SFPTRANSP : SFPUUnaryReg<0x8C, "sfptransp">,
-                Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
+def SFPTRANSP : SFPUUnaryReg<0x8C, "sfptransp">;
 
-def SFPXOR    : SFPUUnaryReg<0x8D, "sfpxor">,
-                Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
+def SFPXOR    : SFPUUnaryReg<0x8D, "sfpxor">;
 
 //--- Stochastic Rounding (round unit, 1 cycle) ---
 
-def SFP_STOCH_RND : SFPUStochRnd<0x8E, "sfpstochrnd">,
-                    Sched<[WriteSFPURound, ReadSFPUSrc, ReadSFPUSrc]>;
+def SFP_STOCH_RND : SFPUStochRnd<0x8E, "sfpstochrnd">;
 
 //--- NOP ---
 
-def SFPNOP : SFPUNop<0x8F, "sfpnop">,
-             Sched<[WriteSFPUNop]>;
+def SFPNOP : SFPUNop<0x8F, "sfpnop">;
 
 //--- SFPCAST (unary format, round unit, 1 cycle) ---
 // mod1 selects: FP32_TO_FP16A, FP32_TO_FP16B, FP16A_TO_FP32, FP16B_TO_FP32,
 //               SM32_TO_INT32 (BH), INT32_TO_SM32 (BH)  -- per C-019
 
-def SFPCAST : SFPUUnaryReg<0x90, "sfpcast">,
-              Sched<[WriteSFPURound, ReadSFPUSrc]>;
+def SFPCAST : SFPUUnaryReg<0x90, "sfpcast">;
 
 //--- SFPCONFIG (imm16 format, simple unit, 1 cycle) ---
 // Writes immediate to config registers or L11-L14 (per C-023)
@@ -532,26 +520,22 @@ def SFPCONFIG : SFPUImm16<0x91, "sfpconfig",
     (outs),
     (ins uimm16_sfpu:$imm16, uimm4_sfpu:$lreg_dest, uimm4_sfpu:$mod1),
     "$lreg_dest, $imm16, $mod1"> {
-  let Sched = [WriteSFPUSimple];
 }
 
 //--- SFPSWAP (unary format, simple unit, 2 cycles) ---
 // Exchanges VD <-> VC, or min/max/argmin/argmax per mod1 (C-025)
 
-def SFPSWAP : SFPUUnaryReg<0x92, "sfpswap">,
-              Sched<[WriteSFPUSwap, ReadSFPUSrc]>;
+def SFPSWAP : SFPUUnaryReg<0x92, "sfpswap">;
 
 //--- SFPSHFT2 (unary format, simple unit, 1-2 cycles) ---
 // Cross-lane shift/rotate. WH SHFLSHR1 has zero-fill bug (E-002).
 
-def SFPSHFT2 : SFPUUnaryReg<0x94, "sfpshft2">,
-               Sched<[WriteSFPUShft2, ReadSFPUSrc]>;
+def SFPSHFT2 : SFPUUnaryReg<0x94, "sfpshft2">;
 
 //--- SFPLUTFP32 (special unary format, MAD unit, 2 cycles) ---
 // LUT lookup with FP32 interpolation. Writes L0, L1, L7.
 
-def SFPLUTFP32 : SFPULutFP32<0x95, "sfplutfp32">,
-                 Sched<[WriteSFPULUTFP32, ReadSFPUSrc]>;
+def SFPLUTFP32 : SFPULutFP32<0x95, "sfplutfp32">;
 
 //--- REPLAY (Tensix opcode 0x04, not SFPU but used by SFPU optimization) ---
 // REPLAY: [31:24]0x04 | [23:14]start_idx | [13:4]len | [3:2]reserved |
@@ -583,7 +567,6 @@ def TTREPLAY : RVInstTensix<0x04,
   // not in the RISC-V custom space
   let Inst{1-0} = {exec_while_load, load_mode};
 
-  let Sched = [WriteSFPUNop];
   let hasSideEffects = 1;
 }
 
@@ -601,7 +584,6 @@ def SFPLOAD_WH : SFPULoadWH<0x70, "sfpload",
     (ins uimm4_sfpu:$mod0, uimm2_sfpu:$addr_mode, uimm14_sfpu:$addr),
     "$lreg_ind, $mod0, $addr_mode, $addr"> {
   let mayLoad = 1;
-  let Sched = [WriteSFPULoad, ReadSFPUSrc];
 }
 
 def SFPSTORE_WH : SFPULoadWH<0x72, "sfpstore",
@@ -610,7 +592,6 @@ def SFPSTORE_WH : SFPULoadWH<0x72, "sfpstore",
          uimm2_sfpu:$addr_mode, uimm14_sfpu:$addr),
     "$lreg_ind, $mod0, $addr_mode, $addr"> {
   let mayStore = 1;
-  let Sched = [WriteSFPUStore, ReadSFPUSrc];
 }
 
 // SFPLUT uses the same format on WH and BH (no addr_mode field)
@@ -623,7 +604,29 @@ def SFPLOADMACRO_WH : SFPULoadWH<0x93, "sfploadmacro",
     "$lreg_ind, $mod0, $addr_mode, $addr"> {
   let mayLoad = 1;
   let Defs = [L16];
-  let Sched = [WriteSFPULoad];
+}
+
+} // Predicates = [HasXttSFPUWH]
+
+//===----------------------------------------------------------------------===//
+// WH C-010: 3-Operand Arithmetic with dst=src_a Constraint
+//
+// On Wormhole, SFPMAD/SFPMUL/SFPADD have a hardware constraint where the
+// destination register must equal src_a. The hardware ignores the dest field
+// and always writes to src_a.
+//
+// These pseudo-instructions are selected on WH targets and enforce the
+// constraint through LLVM's register allocator tying mechanism.
+//
+// Reference: ttsim-analysis/ERRATA.md C-010
+//===----------------------------------------------------------------------===//
+
+let Predicates = [HasXttSFPUWH] in {
+
+let Constraints = "$lreg_dest = $lreg_src_a" in {
+  def SFPMAD_WH : SFPU3Op<0x84, "sfpmad">;
+  def SFPMUL_WH : SFPU3Op<0x86, "sfpmul">;
+  def SFPADD_WH : SFPU3Op<0x85, "sfpadd">;
 }
 
 } // Predicates = [HasXttSFPUWH]
@@ -636,24 +639,19 @@ let Predicates = [HasXttSFPU, HasXttSFPUBH] in {
 
 // SFPMUL24: 23b x 23b integer multiply (C-026)
 // Note: src_c must be L9 (zero constant) due to hardware bug (GH-E-001)
-def SFPMUL24 : SFPU3Op<0x96, "sfpmul24">,
-               Sched<[WriteSFPUMAD, ReadSFPUSrc, ReadSFPUSrc, ReadSFPUSrc]>;
+def SFPMUL24 : SFPU3Op<0x96, "sfpmul24">;
 
 // SFPARECIP: Approximate reciprocal (removed on QS, replaced by SFPNONLINEAR)
-def SFPARECIP : SFPUUnaryReg<0x99, "sfparecip">,
-                Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
+def SFPARECIP : SFPUUnaryReg<0x99, "sfparecip">;
 
 // SFPGT: Greater-than comparison (sets CC) -- GH-Q-005
-def SFPGT : SFPUUnaryCC<0x9A, "sfpgt">,
-            Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
+def SFPGT : SFPUUnaryCC<0x9A, "sfpgt">;
 
 // SFPLE: Less-or-equal comparison (sets CC) -- GH-Q-005
-def SFPLE : SFPUUnaryCC<0x9B, "sfple">,
-            Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
+def SFPLE : SFPUUnaryCC<0x9B, "sfple">;
 
 // SFPMOV_CONFIG: Read configuration register via MOV
-def SFPMOV_CONFIG : SFPUUnaryReg<0x9C, "sfpmov_config">,
-                    Sched<[WriteSFPUSimple]>;
+def SFPMOV_CONFIG : SFPUUnaryReg<0x9C, "sfpmov_config">;
 
 } // Predicates = [HasXttSFPU, HasXttSFPUBH]
 
@@ -670,11 +668,9 @@ def SFPMOV_REG : SFPUUnary<0x7C, "sfpmov",
     (ins SFPUAllRegs:$lreg_c, uimm4_sfpu:$mod1),
     "$lreg_dest, $lreg_c, $mod1"> {
   let imm12 = 0;
-  let Sched = [WriteSFPUSimple, ReadSFPUSrc];
 }
 
 // SFPNOP is trivially dead — safe to eliminate
-let isBarrier = 0 in
 def : InstAlias<"sfpnop", (SFPNOP)>;
 
 } // Predicates = [HasXttSFPU]
@@ -735,39 +731,24 @@ class SFPU3OpLV<bits<8> opcode, string opcodestr>
 
 // --- Standard Unary _lv variants ---
 
-def SFPMOV_LV    : SFPUUnaryRegLV<0x7C, "sfpmov">,
-                   Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
-def SFPABS_LV    : SFPUUnaryRegLV<0x7D, "sfpabs">,
-                   Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
-def SFPEXEXP_LV  : SFPUUnaryRegLV<0x77, "sfpexexp">,
-                   Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
-def SFPEXMAN_LV  : SFPUUnaryRegLV<0x78, "sfpexman">,
-                   Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
-def SFPNOT_LV    : SFPUUnaryRegLV<0x80, "sfpnot">,
-                   Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
-def SFPLZ_LV     : SFPUUnaryRegLV<0x81, "sfplz">,
-                   Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
-def SFPDIVP2_LV  : SFPUUnaryRegLV<0x76, "sfpdivp2">,
-                   Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
-def SFPSETEXP_LV : SFPUUnaryRegLV<0x82, "sfpsetexp">,
-                   Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
-def SFPSETMAN_LV : SFPUUnaryRegLV<0x83, "sfpsetman">,
-                   Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
-def SFPSETSGN_LV : SFPUUnaryRegLV<0x89, "sfpsetsgn">,
-                   Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
-def SFPCAST_LV   : SFPUUnaryRegLV<0x90, "sfpcast">,
-                   Sched<[WriteSFPURound, ReadSFPUSrc]>;
-def SFPSHFT2_LV  : SFPUUnaryRegLV<0x94, "sfpshft2">,
-                   Sched<[WriteSFPUShft2, ReadSFPUSrc]>;
+def SFPMOV_LV    : SFPUUnaryRegLV<0x7C, "sfpmov">;
+def SFPABS_LV    : SFPUUnaryRegLV<0x7D, "sfpabs">;
+def SFPEXEXP_LV  : SFPUUnaryRegLV<0x77, "sfpexexp">;
+def SFPEXMAN_LV  : SFPUUnaryRegLV<0x78, "sfpexman">;
+def SFPNOT_LV    : SFPUUnaryRegLV<0x80, "sfpnot">;
+def SFPLZ_LV     : SFPUUnaryRegLV<0x81, "sfplz">;
+def SFPDIVP2_LV  : SFPUUnaryRegLV<0x76, "sfpdivp2">;
+def SFPSETEXP_LV : SFPUUnaryRegLV<0x82, "sfpsetexp">;
+def SFPSETMAN_LV : SFPUUnaryRegLV<0x83, "sfpsetman">;
+def SFPSETSGN_LV : SFPUUnaryRegLV<0x89, "sfpsetsgn">;
+def SFPCAST_LV   : SFPUUnaryRegLV<0x90, "sfpcast">;
+def SFPSHFT2_LV  : SFPUUnaryRegLV<0x94, "sfpshft2">;
 
 // --- 3-Operand _lv variants ---
 
-def SFPMAD_LV : SFPU3OpLV<0x84, "sfpmad">,
-                Sched<[WriteSFPUMAD, ReadSFPUSrc, ReadSFPUSrc, ReadSFPUSrc]>;
-def SFPADD_LV : SFPU3OpLV<0x85, "sfpadd">,
-                Sched<[WriteSFPUMAD, ReadSFPUSrc, ReadSFPUSrc, ReadSFPUSrc]>;
-def SFPMUL_LV : SFPU3OpLV<0x86, "sfpmul">,
-                Sched<[WriteSFPUMAD, ReadSFPUSrc, ReadSFPUSrc, ReadSFPUSrc]>;
+def SFPMAD_LV : SFPU3OpLV<0x84, "sfpmad">;
+def SFPADD_LV : SFPU3OpLV<0x85, "sfpadd">;
+def SFPMUL_LV : SFPU3OpLV<0x86, "sfpmul">;
 
 // --- Load _lv variant ---
 
@@ -777,7 +758,6 @@ def SFPLOAD_BH_LV : SFPULoadBH<0x70, "sfpload",
          uimm3_sfpu:$addr_mode, uimm13_sfpu:$addr),
     "$lreg_ind, $live_val, $mod0, $addr_mode, $addr"> {
   let mayLoad = 1;
-  let Sched = [WriteSFPULoad, ReadSFPUSrc];
   let Constraints = "$lreg_ind = $live_val";
 }
 
@@ -787,13 +767,10 @@ def SFPLOAD_BH_LV : SFPULoadBH<0x70, "sfpload",
 
 let Predicates = [HasXttSFPU, HasXttSFPUBH] in {
 
-def SFPMUL24_LV : SFPU3OpLV<0x96, "sfpmul24">,
-                  Sched<[WriteSFPUMAD, ReadSFPUSrc, ReadSFPUSrc, ReadSFPUSrc]>;
+def SFPMUL24_LV : SFPU3OpLV<0x96, "sfpmul24">;
 
-def SFPARECIP_LV : SFPUUnaryRegLV<0x99, "sfparecip">,
-                   Sched<[WriteSFPUSimple, ReadSFPUSrc]>;
+def SFPARECIP_LV : SFPUUnaryRegLV<0x99, "sfparecip">;
 
-def SFPMOV_CONFIG_LV : SFPUUnaryRegLV<0x9C, "sfpmov_config">,
-                       Sched<[WriteSFPUSimple]>;
+def SFPMOV_CONFIG_LV : SFPUUnaryRegLV<0x9C, "sfpmov_config">;
 
 } // Predicates = [HasXttSFPU, HasXttSFPUBH]
