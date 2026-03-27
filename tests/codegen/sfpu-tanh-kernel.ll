@@ -42,9 +42,9 @@ entry:
   ; coeff0 = BF16 0x3F00 (0.5)
   ; coeff1 = BF16 0x3E80 (0.25)
   ; coeff2 = BF16 0x3F80 (1.0)
-  %c0 = call i32 @llvm.riscv.tt.sfploadi(i32 0x3F00, i32 0)
-  %c1 = call i32 @llvm.riscv.tt.sfploadi(i32 0x3E80, i32 0)
-  %c2 = call i32 @llvm.riscv.tt.sfploadi(i32 0x3F80, i32 0)
+  %c0 = call i32 @llvm.riscv.tt.sfploadi(i32 16128, i32 0)
+  %c1 = call i32 @llvm.riscv.tt.sfploadi(i32 16000, i32 0)
+  %c2 = call i32 @llvm.riscv.tt.sfploadi(i32 16256, i32 0)
 
   ; Load input from Dst row 0
   %val = call i32 @llvm.riscv.tt.sfpload(i32 0, i32 0, i32 0)
@@ -72,9 +72,9 @@ entry:
 define void @sfpu_tanh_refined() {
 entry:
   ; LUT coefficient setup (same as above)
-  %c0 = call i32 @llvm.riscv.tt.sfploadi(i32 0x3F00, i32 0)
-  %c1 = call i32 @llvm.riscv.tt.sfploadi(i32 0x3E80, i32 0)
-  %c2 = call i32 @llvm.riscv.tt.sfploadi(i32 0x3F80, i32 0)
+  %c0 = call i32 @llvm.riscv.tt.sfploadi(i32 16128, i32 0)
+  %c1 = call i32 @llvm.riscv.tt.sfploadi(i32 16000, i32 0)
+  %c2 = call i32 @llvm.riscv.tt.sfploadi(i32 16256, i32 0)
 
   ; Load from Dst
   %val = call i32 @llvm.riscv.tt.sfpload(i32 0, i32 0, i32 0)
@@ -107,9 +107,9 @@ entry:
 define void @sfpu_tanh_multirow() {
 entry:
   ; LUT setup (once per kernel invocation)
-  %c0 = call i32 @llvm.riscv.tt.sfploadi(i32 0x3F00, i32 0)
-  %c1 = call i32 @llvm.riscv.tt.sfploadi(i32 0x3E80, i32 0)
-  %c2 = call i32 @llvm.riscv.tt.sfploadi(i32 0x3F80, i32 0)
+  %c0 = call i32 @llvm.riscv.tt.sfploadi(i32 16128, i32 0)
+  %c1 = call i32 @llvm.riscv.tt.sfploadi(i32 16000, i32 0)
+  %c2 = call i32 @llvm.riscv.tt.sfploadi(i32 16256, i32 0)
 
   ; Row 0
   %v0 = call i32 @llvm.riscv.tt.sfpload(i32 0, i32 0, i32 0)

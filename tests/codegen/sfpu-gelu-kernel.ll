@@ -92,26 +92,26 @@ entry:
   ; --- Load 0.5 into vConstFloatPrgm0 ---
   ; First load 0.5 (FP32 = 0x3F000000) into L0, then SFPCONFIG to const reg
   ; 0x3F000000: lower16 = 0x0000, upper16 = 0x3F00
-  %half_lo = call i32 @llvm.riscv.tt.sfploadi(i32 0x0000, i32 10)
-  %half_hi = call i32 @llvm.riscv.tt.sfploadi(i32 0x3F00, i32 8)
+  %half_lo = call i32 @llvm.riscv.tt.sfploadi(i32 0, i32 10)
+  %half_hi = call i32 @llvm.riscv.tt.sfploadi(i32 16128, i32 8)
   call void @llvm.riscv.tt.sfpconfig(i32 0, i32 11, i32 0)
 
   ; --- Load 6-piece LUT coefficients ---
   ; L0 = 0x37E7322B: slopes for segments 5,6 (|x| in [0.5,1.0] and [0,0.5])
-  %l0_lo = call i32 @llvm.riscv.tt.sfploadi(i32 0x322B, i32 10)
-  %l0_hi = call i32 @llvm.riscv.tt.sfploadi(i32 0x37E7, i32 8)
+  %l0_lo = call i32 @llvm.riscv.tt.sfploadi(i32 12843, i32 10)
+  %l0_hi = call i32 @llvm.riscv.tt.sfploadi(i32 14311, i32 8)
 
   ; L4 = 0xB12286D8: offsets for segments 5,6
-  %l4_lo = call i32 @llvm.riscv.tt.sfploadi(i32 0x86D8, i32 10)
-  %l4_hi = call i32 @llvm.riscv.tt.sfploadi(i32 0xB122, i32 8)
+  %l4_lo = call i32 @llvm.riscv.tt.sfploadi(i32 34520, i32 10)
+  %l4_hi = call i32 @llvm.riscv.tt.sfploadi(i32 45346, i32 8)
 
   ; L1 = 0x38E138F3: slopes for segments 3,4 (|x| in [1.5,2.0] and [1.0,1.5])
-  %l1_lo = call i32 @llvm.riscv.tt.sfploadi(i32 0x38F3, i32 10)
-  %l1_hi = call i32 @llvm.riscv.tt.sfploadi(i32 0x38E1, i32 8)
+  %l1_lo = call i32 @llvm.riscv.tt.sfploadi(i32 14579, i32 10)
+  %l1_hi = call i32 @llvm.riscv.tt.sfploadi(i32 14561, i32 8)
 
   ; L5 = 0xB437B479: offsets for segments 3,4
-  %l5_lo = call i32 @llvm.riscv.tt.sfploadi(i32 0xB479, i32 10)
-  %l5_hi = call i32 @llvm.riscv.tt.sfploadi(i32 0xB437, i32 8)
+  %l5_lo = call i32 @llvm.riscv.tt.sfploadi(i32 46201, i32 10)
+  %l5_hi = call i32 @llvm.riscv.tt.sfploadi(i32 46135, i32 8)
 
   ret void
 }
@@ -353,7 +353,7 @@ entry:
   call void @llvm.riscv.tt.sfpsetcc(i32 %lut_val, i32 0, i32 0)  ; LT0
 
   ; val = val + 1.0  (1.0 in FP16 = 0x3C00)
-  %biased = call i32 @llvm.riscv.tt.sfpaddi(i32 %lut_val, i32 0x3C00, i32 0)
+  %biased = call i32 @llvm.riscv.tt.sfpaddi(i32 %lut_val, i32 15360, i32 0)
 
   ; v_endif
   call void @llvm.riscv.tt.sfppopc()
@@ -436,15 +436,15 @@ entry:
 define void @gelu_appx_full() {
 entry:
   ; --- Init: set vConstFloatPrgm0 = 0.5 ---
-  %half_lo = call i32 @llvm.riscv.tt.sfploadi(i32 0x0000, i32 10)
-  %half_hi = call i32 @llvm.riscv.tt.sfploadi(i32 0x3F00, i32 8)
+  %half_lo = call i32 @llvm.riscv.tt.sfploadi(i32 0, i32 10)
+  %half_hi = call i32 @llvm.riscv.tt.sfploadi(i32 16128, i32 8)
   call void @llvm.riscv.tt.sfpconfig(i32 0, i32 11, i32 0)
 
   ; --- Init: load L0 and L4 (first segment pair) ---
-  %l0_lo = call i32 @llvm.riscv.tt.sfploadi(i32 0x322B, i32 10)
-  %l0_hi = call i32 @llvm.riscv.tt.sfploadi(i32 0x37E7, i32 8)
-  %l4_lo = call i32 @llvm.riscv.tt.sfploadi(i32 0x86D8, i32 10)
-  %l4_hi = call i32 @llvm.riscv.tt.sfploadi(i32 0xB122, i32 8)
+  %l0_lo = call i32 @llvm.riscv.tt.sfploadi(i32 12843, i32 10)
+  %l0_hi = call i32 @llvm.riscv.tt.sfploadi(i32 14311, i32 8)
+  %l4_lo = call i32 @llvm.riscv.tt.sfploadi(i32 34520, i32 10)
+  %l4_hi = call i32 @llvm.riscv.tt.sfploadi(i32 45346, i32 8)
 
   ; --- Compute: row 0 ---
   %in0 = call i32 @llvm.riscv.tt.sfpload(i32 0, i32 0, i32 0)

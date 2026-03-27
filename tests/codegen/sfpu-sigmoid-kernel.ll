@@ -80,28 +80,28 @@ declare void @llvm.riscv.tt.sfpnop()
 define void @sigmoid_init() {
 entry:
   ; L0 = 0x32F433D9: A0=0.2452 (lo=0x33D9), A1=0.2173 (hi=0x32F4)
-  %l0_lo = call i32 @llvm.riscv.tt.sfploadi(i32 0x33D9, i32 10)  ; lower bits
-  %l0_hi = call i32 @llvm.riscv.tt.sfploadi(i32 0x32F4, i32 8)   ; upper bits
+  %l0_lo = call i32 @llvm.riscv.tt.sfploadi(i32 13273, i32 10)  ; lower bits
+  %l0_hi = call i32 @llvm.riscv.tt.sfploadi(i32 13044, i32 8)   ; upper bits
 
   ; L4 = 0x23C89018: B0=-0.0005 (lo=0x9018), B1=0.0152 (hi=0x23C8)
-  %l4_lo = call i32 @llvm.riscv.tt.sfploadi(i32 0x9018, i32 10)
-  %l4_hi = call i32 @llvm.riscv.tt.sfploadi(i32 0x23C8, i32 8)
+  %l4_lo = call i32 @llvm.riscv.tt.sfploadi(i32 36888, i32 10)
+  %l4_hi = call i32 @llvm.riscv.tt.sfploadi(i32 9160, i32 8)
 
   ; L1 = 0x300A318A: A2=0.1731 (lo=0x318A), A3=0.1262 (hi=0x300A)
-  %l1_lo = call i32 @llvm.riscv.tt.sfploadi(i32 0x318A, i32 10)
-  %l1_hi = call i32 @llvm.riscv.tt.sfploadi(i32 0x300A, i32 8)
+  %l1_lo = call i32 @llvm.riscv.tt.sfploadi(i32 12682, i32 10)
+  %l1_hi = call i32 @llvm.riscv.tt.sfploadi(i32 12298, i32 8)
 
   ; L5 = 0x30272BAA: B2=0.0599 (lo=0x2BAA), B3=0.1298 (hi=0x3027)
-  %l5_lo = call i32 @llvm.riscv.tt.sfploadi(i32 0x2BAA, i32 10)
-  %l5_hi = call i32 @llvm.riscv.tt.sfploadi(i32 0x3027, i32 8)
+  %l5_lo = call i32 @llvm.riscv.tt.sfploadi(i32 11178, i32 10)
+  %l5_hi = call i32 @llvm.riscv.tt.sfploadi(i32 12327, i32 8)
 
   ; L2 = 0x7C002A35: A4=0.0485 (lo=0x2A35), A5=0.0 (hi=0x7C00)
-  %l2_lo = call i32 @llvm.riscv.tt.sfploadi(i32 0x2A35, i32 10)
-  %l2_hi = call i32 @llvm.riscv.tt.sfploadi(i32 0x7C00, i32 8)
+  %l2_lo = call i32 @llvm.riscv.tt.sfploadi(i32 10805, i32 10)
+  %l2_hi = call i32 @llvm.riscv.tt.sfploadi(i32 31744, i32 8)
 
   ; L6 = 0x37FF34CC: B4=0.2998 (lo=0x34CC), B5=0.4998 (hi=0x37FF)
-  %l6_lo = call i32 @llvm.riscv.tt.sfploadi(i32 0x34CC, i32 10)
-  %l6_hi = call i32 @llvm.riscv.tt.sfploadi(i32 0x37FF, i32 8)
+  %l6_lo = call i32 @llvm.riscv.tt.sfploadi(i32 13516, i32 10)
+  %l6_hi = call i32 @llvm.riscv.tt.sfploadi(i32 14335, i32 8)
 
   ret void
 }
@@ -134,7 +134,7 @@ entry:
 
   ; Add 0.5 bias: sigmoid(x) = lut_approx(x) + 0.5
   ; 0.5 in BF16 = 0x3F00, in FP16 = 0x3800
-  %biased = call i32 @llvm.riscv.tt.sfpaddi(i32 %lut_result, i32 0x3800, i32 0)
+  %biased = call i32 @llvm.riscv.tt.sfpaddi(i32 %lut_result, i32 14336, i32 0)
 
   ; Store result back to Dst row 0
   call void @llvm.riscv.tt.sfpstore(i32 %biased, i32 0, i32 0, i32 0)
@@ -172,8 +172,8 @@ entry:
   %lut1 = call i32 @llvm.riscv.tt.sfplutfp32(i32 7, i32 6)
 
   ; Add 0.5 bias for both rows
-  %r0 = call i32 @llvm.riscv.tt.sfpaddi(i32 %lut0, i32 0x3800, i32 0)
-  %r1 = call i32 @llvm.riscv.tt.sfpaddi(i32 %lut1, i32 0x3800, i32 0)
+  %r0 = call i32 @llvm.riscv.tt.sfpaddi(i32 %lut0, i32 14336, i32 0)
+  %r1 = call i32 @llvm.riscv.tt.sfpaddi(i32 %lut1, i32 14336, i32 0)
 
   ; Store both rows
   call void @llvm.riscv.tt.sfpstore(i32 %r0, i32 0, i32 0, i32 0)
@@ -203,22 +203,22 @@ entry:
   ; --- Init phase: load LUT coefficients ---
   ; Only showing L0 and L4 for brevity; real kernel loads all six pairs.
   ; L0 = A0,A1 slopes
-  %l0_lo = call i32 @llvm.riscv.tt.sfploadi(i32 0x33D9, i32 10)
-  %l0_hi = call i32 @llvm.riscv.tt.sfploadi(i32 0x32F4, i32 8)
+  %l0_lo = call i32 @llvm.riscv.tt.sfploadi(i32 13273, i32 10)
+  %l0_hi = call i32 @llvm.riscv.tt.sfploadi(i32 13044, i32 8)
   ; L4 = B0,B1 offsets
-  %l4_lo = call i32 @llvm.riscv.tt.sfploadi(i32 0x9018, i32 10)
-  %l4_hi = call i32 @llvm.riscv.tt.sfploadi(i32 0x23C8, i32 8)
+  %l4_lo = call i32 @llvm.riscv.tt.sfploadi(i32 36888, i32 10)
+  %l4_hi = call i32 @llvm.riscv.tt.sfploadi(i32 9160, i32 8)
 
   ; --- Compute phase: row 0 ---
   %val0 = call i32 @llvm.riscv.tt.sfpload(i32 0, i32 0, i32 0)
   %lut0 = call i32 @llvm.riscv.tt.sfplutfp32(i32 7, i32 6)
-  %res0 = call i32 @llvm.riscv.tt.sfpaddi(i32 %lut0, i32 0x3800, i32 0)
+  %res0 = call i32 @llvm.riscv.tt.sfpaddi(i32 %lut0, i32 14336, i32 0)
   call void @llvm.riscv.tt.sfpstore(i32 %res0, i32 0, i32 0, i32 0)
 
   ; --- Compute phase: row 1 ---
   %val1 = call i32 @llvm.riscv.tt.sfpload(i32 0, i32 0, i32 16)
   %lut1 = call i32 @llvm.riscv.tt.sfplutfp32(i32 7, i32 6)
-  %res1 = call i32 @llvm.riscv.tt.sfpaddi(i32 %lut1, i32 0x3800, i32 0)
+  %res1 = call i32 @llvm.riscv.tt.sfpaddi(i32 %lut1, i32 14336, i32 0)
   call void @llvm.riscv.tt.sfpstore(i32 %res1, i32 0, i32 0, i32 16)
 
   ret void
