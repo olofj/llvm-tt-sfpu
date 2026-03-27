@@ -56,12 +56,17 @@ define void @test_independent_ops() {
 }
 
 ; Verify MOV works on WH target.
+; MOV is used internally between SFPU operations (never crosses GPR boundary).
 ;
 ; CHECK-LABEL: test_mov:
+; CHECK: sfpload
 ; CHECK: sfpmov
-define i32 @test_mov(i32 %src) {
+; CHECK: sfpstore
+define void @test_mov() {
+  %src = call i32 @llvm.riscv.tt.sfpload(i32 0, i32 0, i32 0)
   %result = call i32 @llvm.riscv.tt.sfpmov(i32 %src, i32 0, i32 0)
-  ret i32 %result
+  call void @llvm.riscv.tt.sfpstore(i32 %result, i32 0, i32 0, i32 0)
+  ret void
 }
 
 ; Verify explicit NOP.
