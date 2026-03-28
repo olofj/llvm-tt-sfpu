@@ -283,9 +283,9 @@ static inline unsigned int __builtin_rvtt_sfpshft_i(
 #define __builtin_rvtt_wh_sfpxiadd_v(dst, src, mod) \
     _XTT(__builtin_riscv_tt_sfpiadd(src, 0, mod))
 #define __builtin_rvtt_wh_sfpxfcmps(buf, v, f, x1, x2, mod) \
-    __builtin_riscv_tt_sfpsetcc(v, f, mod)
+    (__builtin_riscv_tt_sfpsetcc(v, f, mod), 0)
 #define __builtin_rvtt_wh_sfpxfcmpv(a, b, mod) \
-    __builtin_riscv_tt_sfpsetcc(a, 0, mod)
+    (__builtin_riscv_tt_sfpsetcc(a, 0, mod), 0)
 
 #endif /* __riscv_xtttensixwh */
 
@@ -390,15 +390,15 @@ __builtin_rvtt_ttreplay(unsigned start, unsigned len,
 #ifdef __riscv_xtttensixwh
 #define __builtin_rvtt_wh_sfpcast(src, mod) _XTT(__builtin_riscv_tt_sfpcast(src, 0, mod))
 #define __builtin_rvtt_wh_sfpsetsgn_i(buf, imm12, x1, x2, src) \
-    __builtin_riscv_tt_sfpsetsgn(src, imm12, 0)
+    _XTT(__builtin_riscv_tt_sfpsetsgn(src, imm12, 0))
 #define __builtin_rvtt_wh_sfpsetsgn_v(dst, src) \
     _XTT(__builtin_riscv_tt_sfpsetsgn(src, 0, 0))
 #define __builtin_rvtt_wh_sfpstochrnd_i(buf, mode, x1, x2, x3, src, mod) \
-    __builtin_riscv_tt_sfpstochrnd(mode, 0, src, 0, mod)
+    _XTT(__builtin_riscv_tt_sfpstochrnd(mode, 0, src, 0, mod))
 #define __builtin_rvtt_wh_sfpstochrnd_v(mode, src_b, src_c, mod) \
-    __builtin_riscv_tt_sfpstochrnd(mode, 0, src_b, src_c, mod)
+    _XTT(__builtin_riscv_tt_sfpstochrnd(mode, 0, src_b, src_c, mod))
 #define __builtin_rvtt_wh_sfpshft_v(dst, src, mod) \
-    __builtin_riscv_tt_sfpshft(src, 0, mod)
+    _XTT(__builtin_riscv_tt_sfpshft(src, 0, mod))
 #define __builtin_rvtt_wh_sfpconfig_v(src, mod) \
     __builtin_riscv_tt_sfpconfig(0, src, mod)
 #endif /* __riscv_xtttensixwh */
