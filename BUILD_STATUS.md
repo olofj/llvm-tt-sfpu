@@ -2,18 +2,16 @@
 
 ## End-to-End Pipeline
 
-Real sfpi.h C++ kernels compile through clang → llc → .o → linked ELF:
+Real sfpi.h C++ kernels compile through clang → assembly → .o → linked ELF:
 
 ```
 clang++ --target=riscv32-unknown-elf -march=rv32imac_xttsfpu_xttsfpubh \
-  -mabi=ilp32 -D__SFPU_BH__ -include sfpi_compat.h -I runtime/sfpi/include \
-  -isystem <gcc12-cxx> -O2 -std=c++17 -fno-exceptions -c kernel.cpp -o kernel.o
+  -mabi=ilp32 -D__SFPU_BH__ -DARCH_BLACKHOLE \
+  -include sfpi_compat.h -I runtime/sfpi/include \
+  -isystem <gcc12-cxx> -O2 -std=c++17 -fno-exceptions \
+  -Wno-builtin-macro-redefined -Wno-macro-redefined -Wno-unknown-attributes \
+  -c kernel.cpp -o kernel.o
 ```
-
-**5 sfpi C++ kernels verified**: abs, negate, mul, predicated (v_if), loadi.
-**ckernel.h full include tree**: compiles with all tt-metal include paths.
-**ckernel_sfpu_recip.h, ckernel_sfpu_quant.h**: compile end-to-end.
-**Linked with GCC's riscv-tt-elf-ld** into valid ELF32 executable.
 
 ## Benchmark (6 kernels, BH)
 
@@ -25,41 +23,50 @@ LLVM: 31 instructions (0 NOPs)
 
 ## What's Working
 
-- `__xtt_vector` as clang builtin type (opaque to optimizer, correct overload resolution)
-- Sema implicit conversion rules (`__xtt_vector ↔ unsigned int`)
-- sfpi.h compiles at -O2 (vFloat, vInt, v_if/v_endif, dst_reg, all operators)
-- MUL+ADD → MAD combining (active)
-- BH scoreboard errata (E-004a) — selective NOP insertion for 10 errata cases
-- All 60+ SFPU intrinsics handled in custom ISel (W_CHAIN + WO_CHAIN)
-- 9 optimization passes registered: Combine, Estrin, Synth, Liveness, Constraints, PredElide, Peephole, Replay, Errata
-- Register allocation with 8 L-registers, L8-L16 reserved
-- Encoding byte-identical to GCC
-- **sfpreadlreg/sfpwritelreg**: proper LLVM intrinsics mapping to physical L-registers
-- **sfpselect2/sfpselect4**: multi-register result extraction (SFPSWAP/SFPTRANSP)
-- **ttincrwc**: Tensix scalar instruction emitted via `.word`
-- **WH pipeline**: clang → llc → llvm-mc end-to-end (9/9 tests pass)
-- **tt-metal build integration**: `TT_METAL_USE_LLVM_SFPU=1` patches applied to jit_build, BH HAL, WH HAL
+**Frontend:**
+- `__xtt_vector` builtin type with Sema implicit conversion (`↔ unsigned int`)
+- sfpi.h compiles at -O2 (vFloat, vInt, vUInt, v_if/v_endif, dst_reg)
+- 60+ SFPU intrinsics with full custom ISel (W_CHAIN + WO_CHAIN)
+- sfpreadlreg/sfpwritelreg, sfpselect2/sfpselect4, ttincrwc, ttreplay
+
+**Optimization (10 passes):**
+- MUL+ADD → MAD combining
+- Horner → Estrin polynomial restructuring (degree 3-4)
+- SFPMULI → SFPMUL register-form substitution on immediate overflow
+- _lv instruction substitution with tied operands for predication
+- TTI fetch fusion (scalar/SFPU clustering)
+- Predication elision for trivial v_if bodies
+- LZ+SETCC / EXEXP+SETCC peephole fusion
+- REPLAY buffer sequence deduplication
+- BH scoreboard errata (E-004a, 10 specific instruction combinations)
+- WH pipeline NOP insertion + E-002 SHFLSHR1 workaround
+
+**Scheduling:**
+- TensixBH/WHScalarModel with per-instruction latencies
+- InstRW mappings for all SFPU instructions
+- Post-RA scheduler enabled
+
+**Integration:**
+- `TT_METAL_USE_LLVM_SFPU=1` build system patches applied
+- WH pipeline: clang → llc → llvm-mc end-to-end
+- LTO: smoke test passes (cross-module)
+- ELF links with GCC's riscv-tt-elf-ld
 
 ## Tests
 
 ```
-test_compile_kernel.sh bh:  9/9 pass
-test_compile_kernel.sh wh:  9/9 pass
-compare_gcc_llvm.py:        55/55 pass
-sfpi C++ kernels:           5/5 compile to assembly
-ckernel_sfpu kernels:       87/91 standalone, 0 toolchain-caused failures
-Benchmark:                  18% reduction
-Linker:                     ELF32 links with riscv-tt-elf-ld
-LTO:                        smoke test passes (2-TU cross-module)
+test_compile_kernel.sh bh:    10/10 pass
+test_compile_kernel.sh wh:    10/10 pass
+compare_gcc_llvm.py:          ALL PASSED (encoding + negative + round-trip)
+test_all_kernels.sh:          87/91 (4 inter-layer naming conflicts)
+Benchmark:                    18% reduction
 ```
 
-### Kernel Coverage (83/91)
+### Kernel Coverage (87/91)
 
-4 remaining failures are deep inter-kernel dependencies (not toolchain bugs):
-- `binary_bitwise`: missing `BinaryBitwiseOp` enum (from external types header)
-- `cumsum`: naming mismatch between metal/tt_llk layers
-- `lgamma`: metal-layer references tt_llk-layer log helper
-- `reshuffle_rows`: naming mismatch between metal/tt_llk layers
+4 remaining failures are inter-kernel naming conflicts between tt-metal's
+metal-layer and tt_llk-layer (not toolchain bugs):
+- `binary_bitwise`, `cumsum`, `lgamma`, `reshuffle_rows`
 
 ## Known Remaining Issues
 
@@ -68,16 +75,19 @@ LTO:                        smoke test passes (2-TU cross-module)
 ## Quick Test
 
 ```bash
-# Toolchain tests
+# Toolchain tests (10 tests each: syntax, IR, codegen, encoding)
 ./switchover/test_compile_kernel.sh bh
 ./switchover/test_compile_kernel.sh wh
 
-# sfpi.h kernel compilation
-clang++ --target=riscv32-unknown-elf -march=rv32imac_xttsfpu_xttsfpubh \
-  -mabi=ilp32 -D__SFPU_BH__ -include switchover/sfpi_compat.h \
-  -I /path/to/runtime/sfpi/include \
-  -isystem /opt/tenstorrent/sfpi/compiler/riscv32-unknown-elf/include/c++/12.4.0 \
-  -isystem /opt/tenstorrent/sfpi/compiler/riscv32-unknown-elf/include/c++/12.4.0/riscv32-unknown-elf \
-  -O2 -std=c++17 -fno-exceptions -Wno-builtin-macro-redefined -Wno-macro-redefined \
-  -c kernel.cpp -o kernel.o
+# Cross-validation (encoding, negative tests, GCC comparison)
+python3 tests/compare_gcc_llvm.py
+
+# Kernel coverage (87/91 ckernel_sfpu_*.h files)
+./tests/test_all_kernels.sh
+
+# Environment variables for non-default paths:
+#   LLVM_DIR         — LLVM build bin directory
+#   TT_METAL_HOME    — tt-metal source tree
+#   SFPI_GCC12_CXX   — GCC 12 C++ stdlib headers
+#   SFPI_GCC         — GCC cross-compiler for compare tests
 ```
