@@ -58,15 +58,13 @@ LLVM: 31 instructions (0 NOPs)
 test_compile_kernel.sh bh:    10/10 pass
 test_compile_kernel.sh wh:    10/10 pass
 compare_gcc_llvm.py:          ALL PASSED (encoding + negative + round-trip)
-test_all_kernels.sh:          87/91 (4 inter-layer naming conflicts)
+test_all_kernels.sh:          91/91
 Benchmark:                    18% reduction
 ```
 
-### Kernel Coverage (87/91)
+### Kernel Coverage (91/91)
 
-4 remaining failures are inter-kernel naming conflicts between tt-metal's
-metal-layer and tt_llk-layer (not toolchain bugs):
-- `binary_bitwise`, `cumsum`, `lgamma`, `reshuffle_rows`
+All 91 ckernel_sfpu_*.h kernel headers compile under LLVM/clang.
 
 ## Known Remaining Issues
 

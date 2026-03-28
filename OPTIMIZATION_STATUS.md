@@ -61,5 +61,5 @@ SFPSHFT2 shuffle/shift modes, SFPLUT, SFPLUTFP32).
 test_compile_kernel.sh bh:    10/10
 test_compile_kernel.sh wh:    10/10
 compare_gcc_llvm.py:          ALL PASSED (encoding + negative + round-trip)
-test_all_kernels.sh:          87/91 (4 inter-layer naming conflicts)
+test_all_kernels.sh:          91/91
 ```

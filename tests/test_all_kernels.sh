@@ -51,8 +51,9 @@ FLAGS="--target=riscv32-unknown-elf -march=rv32imac_xttsfpu_xttsfpubh \
   -I$TT/tt_metal/third_party/tt_llk/tt_llk_blackhole/common/inc \
   -I$TT/tt_metal/third_party/tt_llk/tt_llk_blackhole/llk_lib \
   -I$TT/tt_metal/hostdevcommon/api -I$TT/tt_metal/api \
-  -I$SFPI -I$KERNEL_DIR -I$KERNEL_DIR/.. \
+  -I$SFPI \
   -I$TT/tt_metal/third_party/tt_llk/tt_llk_blackhole/common/inc/sfpu \
+  -I$KERNEL_DIR -I$KERNEL_DIR/.. \
   -isystem $GCC12 -isystem ${GCC12}/riscv32-unknown-elf -isystem $SYSROOT \
   -O2 -std=c++17 -fno-exceptions -ffast-math \
   -Wno-builtin-macro-redefined -Wno-macro-redefined -Wno-unknown-attributes \
@@ -92,6 +93,9 @@ using namespace sfpi;
 #endif
 #if __has_include("ckernel_sfpu_rounding_ops.h")
 #include "ckernel_sfpu_rounding_ops.h"
+#endif
+#if __has_include("ckernel_sfpu_converter.h")
+#include "ckernel_sfpu_converter.h"
 #endif
 #if __has_include("ckernel_sfpu_log.h")
 #include "ckernel_sfpu_log.h"
