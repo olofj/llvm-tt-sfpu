@@ -164,10 +164,14 @@ def test_encoding_match():
          "sfpadd l0, l10, l0, l2, 0",
          gcc_encode_formula(0x85, (10 << 16) + (0 << 12) + (2 << 8) + (0 << 4) + 0) ),
 
-        # BH-only instructions
-        # SFPGT/SFPLE: SKIPPED — crashes llvm-mc assembler (known issue,
-        # SFPUUnaryCC format triggers "Unknown match type" in asm parser).
-        # These encode correctly in the TableGen model; the parser needs fixing.
+        # BH-only instructions (SFPUUnaryCC: lreg_dest is immediate, not register)
+        ("SFPGT dest=2 src=L3",
+         "sfpgt 2, l3, 0, 0",
+         gcc_encode_formula(0x9A, (0 << 12) + (3 << 8) + (2 << 4) + 0) ),
+
+        ("SFPLE dest=2 src=L3",
+         "sfple 2, l3, 0, 0",
+         gcc_encode_formula(0x9B, (0 << 12) + (3 << 8) + (2 << 4) + 0) ),
 
         ("SFPARECIP L1=arecip(L0)",
          "sfparecip l1, l0, 0, 0",
@@ -272,9 +276,10 @@ def test_round_trip():
         "sfpabs l1, l0, 0, 0",
         "sfploadi l0, 0, 16256",
         "sfpload l0, 0, 1, 0",
-        "sfppushc l0, l0, 0, 0",
-        "sfpcompc l0, l0, 0, 0",
-        "sfppopc l0, l0, 0, 0",
+        # SFPUUnaryCC: lreg_dest is immediate (register index), not register name
+        "sfppushc 0, l0, 0, 0",
+        "sfpcompc 0, l0, 0, 0",
+        "sfppopc 0, l0, 0, 0",
         "sfpmul l3, l0, l1, l9, 0",
         "sfpexexp l1, l0, 0, 0",
     ]
@@ -291,26 +296,16 @@ def test_round_trip():
             failed += 1
             continue
 
-        # Disassemble the bytes via echo + llvm-mc -disassemble
+        # Disassemble the bytes via binary stdin to llvm-mc -disassemble
         le_bytes = struct.pack("<I", word1)
-        # Write binary to file, disassemble from file
-        with tempfile.NamedTemporaryFile(suffix=".bin", delete=False) as bf:
-            bf.write(le_bytes)
-            bf.flush()
-            rc, dis_out, dis_err = run(
-                f"{LLVM_MC} -triple riscv32 -mattr={mattr} -disassemble {bf.name} 2>&1",
-                check=False
-            )
-            os.unlink(bf.name)
-
-        if rc != 0 or not dis_out.strip():
-            # Try pipe approach
-            hex_bytes = ",".join(f"0x{b:02x}" for b in le_bytes)
-            rc, dis_out, dis_err = run(
-                f"printf '\\x{le_bytes[0]:02x}\\x{le_bytes[1]:02x}\\x{le_bytes[2]:02x}\\x{le_bytes[3]:02x}' | "
-                f"{LLVM_MC} -triple riscv32 -mattr={mattr} -disassemble 2>&1",
-                check=False
-            )
+        # Use binary mode subprocess to avoid UnicodeDecodeError
+        result = subprocess.run(
+            [LLVM_MC, "-triple", "riscv32", f"-mattr={mattr}", "-disassemble"],
+            input=le_bytes, capture_output=True, timeout=30
+        )
+        rc = result.returncode
+        dis_out = result.stdout.decode("utf-8", errors="replace")
+        dis_err = result.stderr.decode("utf-8", errors="replace")
 
         if rc != 0 or not dis_out.strip():
             print(f"  SKIP  {line}: disassemble not supported for this format")
@@ -672,10 +667,7 @@ def main():
     total_failures += test_encoding_match_wh()
     total_failures += test_immediate_widths()
     total_failures += test_immediate_widths_wh()
-    # Round-trip test disabled: llvm-mc -disassemble reads binary that
-    # causes UnicodeDecodeError in Python's subprocess text mode.
-    # TODO: rewrite to use hex string input format.
-    # total_failures += test_round_trip()
+    total_failures += test_round_trip()
     total_failures += test_corner_cases()
     total_failures += test_gcc_vs_llvm_kernels()
 

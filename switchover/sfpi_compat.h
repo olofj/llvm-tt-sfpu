@@ -156,15 +156,15 @@ static inline unsigned int __builtin_rvtt_sfpshft_i(
 
 /* Load/Store BH */
 #define __builtin_rvtt_bh_sfpload(buf, mod0, mode, addr, x1, x2) \
-    __builtin_riscv_tt_sfpload(mod0, mode, addr)
+    _XTT(__builtin_riscv_tt_sfpload(mod0, mode, addr))
 #define __builtin_rvtt_bh_sfpload_lv(buf, live, mod0, mode, addr, x1, x2) \
-    __builtin_riscv_tt_sfpload_lv(live, mod0, mode, addr)
+    _XTT(__builtin_riscv_tt_sfpload_lv(live, mod0, mode, addr))
 #define __builtin_rvtt_bh_sfpstore(buf, src, mod0, mode, addr, x1, x2) \
     __builtin_riscv_tt_sfpstore(src, mod0, mode, addr)
 #define __builtin_rvtt_bh_sfpxloadi(buf, mod0, imm16, x1, x2) \
-    __builtin_riscv_tt_sfploadi(mod0, imm16)
+    _XTT(__builtin_riscv_tt_sfploadi(mod0, imm16))
 #define __builtin_rvtt_bh_sfpxloadi_lv(buf, live, mod0, imm16, x1, x2) \
-    __builtin_riscv_tt_sfploadi(mod0, imm16)
+    _XTT(__builtin_riscv_tt_sfploadi(mod0, imm16))
 
 /* 3-operand arithmetic BH */
 #define __builtin_rvtt_bh_sfpmad(a, b, c, mod) _XTT(__builtin_riscv_tt_sfpmad(a, b, c, mod))
@@ -176,9 +176,9 @@ static inline unsigned int __builtin_rvtt_sfpshft_i(
 
 /* Immediate arithmetic BH */
 #define __builtin_rvtt_bh_sfpmuli(buf, src, imm16, x1, x2, mod) \
-    __builtin_riscv_tt_sfpmuli(src, imm16, mod)
+    _XTT(__builtin_riscv_tt_sfpmuli(src, imm16, mod))
 #define __builtin_rvtt_bh_sfpaddi(buf, src, imm16, x1, x2, mod) \
-    __builtin_riscv_tt_sfpaddi(src, imm16, mod)
+    _XTT(__builtin_riscv_tt_sfpaddi(src, imm16, mod))
 
 /* Unary with immediate BH */
 #define __builtin_rvtt_bh_sfpsetexp_i(buf, imm12, x1, x2, src) \
@@ -190,9 +190,9 @@ static inline unsigned int __builtin_rvtt_sfpshft_i(
 #define __builtin_rvtt_bh_sfpsetman_v(dst, src) \
     _XTT(__builtin_riscv_tt_sfpsetman(src, 0, 0))
 #define __builtin_rvtt_bh_sfpsetsgn_i(buf, imm12, x1, x2, src) \
-    __builtin_riscv_tt_sfpsetsgn(src, imm12, 0)
+    _XTT(__builtin_riscv_tt_sfpsetsgn(src, imm12, 0))
 #define __builtin_rvtt_bh_sfpsetsgn_v(dst, src) \
-    __builtin_riscv_tt_sfpsetsgn(src, 0, 0)
+    _XTT(__builtin_riscv_tt_sfpsetsgn(src, 0, 0))
 #define __builtin_rvtt_bh_sfpdivp2(buf, imm12, x1, x2, src, mod) \
     _XTT(__builtin_riscv_tt_sfpdivp2(src, imm12, mod))
 #define __builtin_rvtt_bh_sfpdivp2_lv(buf, live, imm12, x1, x2, src, mod) \
@@ -200,17 +200,17 @@ static inline unsigned int __builtin_rvtt_sfpshft_i(
 
 /* Integer operations BH */
 #define __builtin_rvtt_bh_sfpxiadd_i(buf, src, imm12, x1, x2, mod) \
-    __builtin_riscv_tt_sfpiadd(src, imm12, mod)
+    _XTT(__builtin_riscv_tt_sfpiadd(src, imm12, mod))
 #define __builtin_rvtt_bh_sfpxiadd_i_lv(buf, live, src, imm12, x1, x2, mod) \
-    __builtin_riscv_tt_sfpiadd(src, imm12, mod)
+    _XTT(__builtin_riscv_tt_sfpiadd(src, imm12, mod))
 #define __builtin_rvtt_bh_sfpxiadd_v(dst, src, mod) \
-    __builtin_riscv_tt_sfpiadd(src, 0, mod)
+    _XTT(__builtin_riscv_tt_sfpiadd(src, 0, mod))
 
 /* Shift BH */
 #define __builtin_rvtt_bh_sfpshft_i(buf, dst, imm12, x1, x2, mod) \
-    __builtin_riscv_tt_sfpshft(dst, imm12, mod)
+    _XTT(__builtin_riscv_tt_sfpshft(dst, imm12, mod))
 #define __builtin_rvtt_bh_sfpshft_v(dst, src, mod) \
-    __builtin_riscv_tt_sfpshft(src, 0, mod)
+    _XTT(__builtin_riscv_tt_sfpshft(src, 0, mod))
 
 /* Comparison BH — these set the CC and return a dummy condition result (0).
  * In GCC, sfpxfcmps/v/sfpxicmps return int (condition); in LLVM, sfpsetcc is void.
@@ -256,32 +256,32 @@ static inline unsigned int __builtin_rvtt_sfpshft_i(
 #ifdef __riscv_xtttensixwh
 
 #define __builtin_rvtt_wh_sfpload(buf, mod0, mode, addr, x1, x2) \
-    __builtin_riscv_tt_sfpload(mod0, mode, addr)
+    _XTT(__builtin_riscv_tt_sfpload(mod0, mode, addr))
 #define __builtin_rvtt_wh_sfpload_lv(buf, live, mod0, mode, addr, x1, x2) \
-    __builtin_riscv_tt_sfpload_lv(live, mod0, mode, addr)
+    _XTT(__builtin_riscv_tt_sfpload_lv(live, mod0, mode, addr))
 #define __builtin_rvtt_wh_sfpstore(buf, src, mod0, mode, addr, x1, x2) \
     __builtin_riscv_tt_sfpstore(src, mod0, mode, addr)
 #define __builtin_rvtt_wh_sfpxloadi(buf, mod0, imm16, x1, x2) \
-    __builtin_riscv_tt_sfploadi(mod0, imm16)
+    _XTT(__builtin_riscv_tt_sfploadi(mod0, imm16))
 
 #define __builtin_rvtt_wh_sfpmad(a, b, c, mod) _XTT(__builtin_riscv_tt_sfpmad(a, b, c, mod))
 #define __builtin_rvtt_wh_sfpmul(a, b, mod) _XTT(__builtin_riscv_tt_sfpmul(a, b, 9, mod))
 #define __builtin_rvtt_wh_sfpadd(a, b, mod) _XTT(__builtin_riscv_tt_sfpadd(10, a, b, mod))
 
 #define __builtin_rvtt_wh_sfpsetexp_i(buf, imm12, x1, x2, src) \
-    __builtin_riscv_tt_sfpsetexp(src, imm12, 0)
+    _XTT(__builtin_riscv_tt_sfpsetexp(src, imm12, 0))
 #define __builtin_rvtt_wh_sfpsetexp_v(dst, src) \
-    __builtin_riscv_tt_sfpsetexp(src, 0, 0)
+    _XTT(__builtin_riscv_tt_sfpsetexp(src, 0, 0))
 #define __builtin_rvtt_wh_sfpsetman_i(buf, imm12, x1, x2, src, mod) \
-    __builtin_riscv_tt_sfpsetman(src, imm12, mod)
+    _XTT(__builtin_riscv_tt_sfpsetman(src, imm12, mod))
 #define __builtin_rvtt_wh_sfpsetman_v(dst, src) \
-    __builtin_riscv_tt_sfpsetman(src, 0, 0)
+    _XTT(__builtin_riscv_tt_sfpsetman(src, 0, 0))
 #define __builtin_rvtt_wh_sfpdivp2(buf, imm12, x1, x2, src, mod) \
-    __builtin_riscv_tt_sfpdivp2(src, imm12, mod)
+    _XTT(__builtin_riscv_tt_sfpdivp2(src, imm12, mod))
 #define __builtin_rvtt_wh_sfpxiadd_i(buf, src, imm12, x1, x2, mod) \
-    __builtin_riscv_tt_sfpiadd(src, imm12, mod)
+    _XTT(__builtin_riscv_tt_sfpiadd(src, imm12, mod))
 #define __builtin_rvtt_wh_sfpxiadd_v(dst, src, mod) \
-    __builtin_riscv_tt_sfpiadd(src, 0, mod)
+    _XTT(__builtin_riscv_tt_sfpiadd(src, 0, mod))
 #define __builtin_rvtt_wh_sfpxfcmps(buf, v, f, x1, x2, mod) \
     __builtin_riscv_tt_sfpsetcc(v, f, mod)
 #define __builtin_rvtt_wh_sfpxfcmpv(a, b, mod) \
@@ -323,18 +323,13 @@ static inline unsigned int __builtin_rvtt_sfpshft_i(
 #define __builtin_rvtt_sfpxicmpv(a, b, mod) \
     (__builtin_riscv_tt_sfpsetcc(a, 0, mod), 0)
 
-/* sfpreadlreg/sfpwritelreg: L-register read/write helpers.
- * In GCC, these are direct register accesses. For LLVM, we use inline asm
- * since there's no intrinsic for raw LReg access (the register allocator
- * manages LRegs). */
-static inline unsigned int __builtin_rvtt_sfpreadlreg(unsigned int lreg) {
-    unsigned int result;
-    __asm__ volatile("sfpmov %0, %1, 0" : "=r"(result) : "r"(lreg));
-    return result;
-}
-static inline void __builtin_rvtt_sfpwritelreg(unsigned int lreg, unsigned int val) {
-    __asm__ volatile("sfpmov %0, %1, 0" : "=r"(lreg) : "r"(val));
-}
+/* sfpreadlreg/sfpwritelreg: L-register read/write by constant index.
+ * GCC has per-register variants (sfpreadlreg0-7). Our LLVM intrinsics
+ * take a constant index and emit SFPMOV from/to the physical L-register. */
+#define __builtin_rvtt_sfpreadlreg(idx) \
+    _XTT(__builtin_riscv_tt_sfpreadlreg(idx))
+#define __builtin_rvtt_sfpwritelreg(val, idx) \
+    __builtin_riscv_tt_sfpwritelreg((unsigned int)(val), idx)
 
 /* synth_opcode: emit a raw Tensix opcode. Not an SFPU instruction.
  * Used for rare non-SFPU operations within SFPU kernels. */
@@ -342,23 +337,54 @@ static inline void __builtin_rvtt_sfpwritelreg(unsigned int lreg, unsigned int v
     __asm__ volatile(".word %0" :: "i"(opcode))
 
 /* ttincrwc: increment write counter (Tensix scalar instruction, not SFPU).
- * The write counter manages Dst tile addressing. */
+ * The write counter manages Dst tile addressing.
+ * Encoding: TT_OP(0x38, (rwc_cr << 18) | (rwc_d << 14) | (rwc_b << 10) | (rwc_a << 6))
+ * Args map: cr→rwc_cr, incr→rwc_d, mask→rwc_b, val→rwc_a */
 #define __builtin_rvtt_ttincrwc(cr, incr, mask, val) \
-    __asm__ volatile("# ttincrwc placeholder" ::: "memory")
+    __asm__ volatile(".word %0" :: "i"( \
+        (0x38 << 24) | ((cr) << 18) | ((incr) << 14) | ((mask) << 10) | ((val) << 6)) \
+        : "memory")
 
-/* sfpselect2/sfpselect4: select vector lanes from multi-lane results.
- * Used by sfpi_lib.h for LUTFP32 results. Stub: return src unchanged. */
-#define __builtin_rvtt_sfpselect2(src, idx) (src)
-#define __builtin_rvtt_sfpselect4(src, idx) (src)
+/* sfpselect2/sfpselect4: extract lane from multi-register result.
+ * sfpselect2: used after SFPSWAP (2 outputs: dest + src_c)
+ * sfpselect4: used after SFPTRANSP (4 outputs: all 4 input registers) */
+#define __builtin_rvtt_sfpselect2(src, idx) \
+    _XTT(__builtin_riscv_tt_sfpselect2((unsigned int)(src), idx))
+#define __builtin_rvtt_sfpselect4(src, idx) \
+    _XTT(__builtin_riscv_tt_sfpselect4((unsigned int)(src), idx))
 
 /* sfpshft2_subvec_shfl1: SFPSHFT2 in shuffle mode.
  * Maps to sfpshft2 with the specified mod1. */
 #define __builtin_rvtt_sfpshft2_subvec_shfl1(src, mod1) \
     __builtin_riscv_tt_sfpshft2(src, 0, mod1)
 
-/* ttreplay: replay buffer control. Stub for initial bring-up. */
-#define __builtin_rvtt_ttreplay(buf, start, len, exec_while_loading) \
-    /* replay handled by SFPU replay pass */
+/* ttreplay: replay buffer control (Tensix opcode 0x04).
+ * GCC has a 7-arg builtin; lltt.h wraps it with a 4→7-arg macro:
+ *   #define __builtin_rvtt_ttreplay(S,L,E,R)
+ *           __builtin_rvtt_ttreplay(buf,L,0,0,S,E,R)
+ * We define the 7-arg and 4-arg forms as inline no-ops. The LLVM replay
+ * pass handles replay optimization automatically at machine code level. */
+#ifdef __cplusplus
+template<typename T>
+static inline __attribute__((always_inline)) void
+__builtin_rvtt_ttreplay(volatile T *buf, unsigned len,
+                         unsigned z1, unsigned z2, unsigned start,
+                         unsigned exec_while_loading, unsigned load_mode) {
+    (void)buf; (void)len; (void)z1; (void)z2; (void)start;
+    (void)exec_while_loading; (void)load_mode;
+    __asm__ volatile("" ::: "memory");
+}
+static inline __attribute__((always_inline)) void
+__builtin_rvtt_ttreplay(unsigned start, unsigned len,
+                         unsigned exec_while_loading, unsigned load_mode) {
+    (void)start; (void)len; (void)exec_while_loading; (void)load_mode;
+    __asm__ volatile("" ::: "memory");
+}
+#else
+/* C: simple 4-arg macro (lltt.h is C++ only) */
+#define __builtin_rvtt_ttreplay(start, len, ewl, lm) \
+    __asm__ volatile("" ::: "memory")
+#endif
 
 /* WH-specific missing builtins */
 #ifdef __riscv_xtttensixwh
@@ -366,7 +392,7 @@ static inline void __builtin_rvtt_sfpwritelreg(unsigned int lreg, unsigned int v
 #define __builtin_rvtt_wh_sfpsetsgn_i(buf, imm12, x1, x2, src) \
     __builtin_riscv_tt_sfpsetsgn(src, imm12, 0)
 #define __builtin_rvtt_wh_sfpsetsgn_v(dst, src) \
-    __builtin_riscv_tt_sfpsetsgn(src, 0, 0)
+    _XTT(__builtin_riscv_tt_sfpsetsgn(src, 0, 0))
 #define __builtin_rvtt_wh_sfpstochrnd_i(buf, mode, x1, x2, x3, src, mod) \
     __builtin_riscv_tt_sfpstochrnd(mode, 0, src, 0, mod)
 #define __builtin_rvtt_wh_sfpstochrnd_v(mode, src_b, src_c, mod) \

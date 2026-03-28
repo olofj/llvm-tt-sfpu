@@ -118,12 +118,52 @@ unsigned int test_mad_bh(unsigned int a, unsigned int b, unsigned int c) {
 CEOF
     run_test "BH-specific builtins via compat header" \
         "$CLANG --target=riscv32-unknown-elf -march=$MARCH -mabi=ilp32 $DEFINE -O2 -emit-llvm -S -I$SCRIPT_DIR $TMPDIR/test_arch.c -o $TMPDIR/test_arch.ll && grep -q 'llvm.riscv.tt.sfpload' $TMPDIR/test_arch.ll"
+elif [ "$ARCH" = "wh" ]; then
+    cat > "$TMPDIR/test_arch.c" << 'CEOF'
+#include "sfpi_compat.h"
+unsigned int test_cast_wh(unsigned int src) {
+    return __builtin_rvtt_wh_sfpcast(src, 0);
+}
+void test_config_wh(unsigned int src) {
+    __builtin_rvtt_wh_sfpconfig_v(src, 0);
+}
+CEOF
+    run_test "WH-specific builtins via compat header" \
+        "$CLANG --target=riscv32-unknown-elf -march=$MARCH -mabi=ilp32 $DEFINE -O2 -emit-llvm -S -I$SCRIPT_DIR $TMPDIR/test_arch.c -o $TMPDIR/test_arch.ll && grep -q 'llvm.riscv.tt' $TMPDIR/test_arch.ll"
 fi
 
-# ---- Test 7: llvm-mc encoding round-trip ----
+# ---- Test 7: readlreg/writelreg/select builtins ----
+cat > "$TMPDIR/test_lreg.c" << 'CEOF'
+#include "sfpi_compat.h"
+unsigned int test_readlreg(void) {
+    return __builtin_rvtt_sfpreadlreg(10);  /* read L10 (constant 1.0) */
+}
+void test_writelreg(unsigned int val) {
+    __builtin_rvtt_sfpwritelreg(val, 3);  /* write to L3 */
+}
+CEOF
+run_test "readlreg/writelreg builtins" \
+    "$CLANG --target=riscv32-unknown-elf -march=$MARCH -mabi=ilp32 $DEFINE -O2 -emit-llvm -S -I$SCRIPT_DIR $TMPDIR/test_lreg.c -o $TMPDIR/test_lreg.ll && grep -q 'llvm.riscv.tt.sfpreadlreg' $TMPDIR/test_lreg.ll"
+
+# ---- Test 8: ttincrwc emits .word ----
+cat > "$TMPDIR/test_incrwc.c" << 'CEOF'
+#include "sfpi_compat.h"
+void test_incrwc(void) {
+    __builtin_rvtt_ttincrwc(0, 2, 0, 0);
+}
+CEOF
+run_test "ttincrwc emits .word instruction" \
+    "$CLANG --target=riscv32-unknown-elf -march=$MARCH -mabi=ilp32 $DEFINE -O2 -S -I$SCRIPT_DIR $TMPDIR/test_incrwc.c -o $TMPDIR/test_incrwc.s && grep -q '.word' $TMPDIR/test_incrwc.s"
+
+# ---- Test 9: llvm-mc encoding round-trip ----
 if [ -d "$PROJECT_DIR/tests/encoding" ]; then
-    run_test "llvm-mc all-opcodes encoding test" \
-        "$LLVM_MC -triple riscv32 -mattr=$MATTR -filetype=obj $PROJECT_DIR/tests/encoding/sfpu-all-opcodes.s -o /dev/null"
+    if [ "$ARCH" = "wh" ] && [ -f "$PROJECT_DIR/tests/encoding/sfpu-wh-opcodes.s" ]; then
+        run_test "llvm-mc WH opcodes encoding test" \
+            "$LLVM_MC -triple riscv32 -mattr=$MATTR -filetype=obj $PROJECT_DIR/tests/encoding/sfpu-wh-opcodes.s -o /dev/null"
+    else
+        run_test "llvm-mc all-opcodes encoding test" \
+            "$LLVM_MC -triple riscv32 -mattr=$MATTR -filetype=obj $PROJECT_DIR/tests/encoding/sfpu-all-opcodes.s -o /dev/null"
+    fi
 fi
 
 # Cleanup
