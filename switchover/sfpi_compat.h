@@ -55,27 +55,41 @@
 /* ---- C++ only: ckernel stub and 6-arg inline function stubs ---- */
 #ifdef __cplusplus
 /* sfpi_builtins.h's self-referencing macros expand to forms containing
- * ckernel::instrn_buffer. Provide a stub so the token resolves. */
+ * ckernel::instrn_buffer. If compiling with ckernel.h (TENSIX_FIRMWARE),
+ * it provides the real definition. Otherwise, provide a stub. */
+#if !defined(TENSIX_FIRMWARE)
 namespace ckernel { static volatile unsigned int instrn_buffer[1] = {0}; }
+#endif
 
 /* sfpi_builtins.h lines 14-16 define macros like:
  *   __builtin_rvtt_sfpxicmps(v,i,mod1) → __builtin_rvtt_sfpxicmps(buf,v,i,0,0,mod1)
  * The self-reference prevention causes the 6-arg form to survive as a function
  * call. We provide inline functions matching the 6-arg signature. */
+/* Accept any pointer type for buf (ckernel.h uses volatile uint32_t(&)[]
+ * which becomes volatile unsigned long* with our __INT32_TYPE__=long fix) */
+template<typename T>
 __attribute__((always_inline))
 static inline int __builtin_rvtt_sfpxicmps(
-    volatile unsigned int*, unsigned int v, unsigned int i,
+    T*, unsigned int v, unsigned int i,
     unsigned int, unsigned int, unsigned int mod1) {
     __builtin_riscv_tt_sfpsetcc(v, i, mod1);
     return 0;
 }
+template<typename T>
 __attribute__((always_inline))
 static inline unsigned int __builtin_rvtt_sfpshft_i(
-    volatile unsigned int*, unsigned int dst, unsigned int imm12,
+    T*, unsigned int dst, unsigned int imm12,
     unsigned int, unsigned int, unsigned int mod1) {
     return __builtin_riscv_tt_sfpshft(dst, imm12, mod1);
 }
 #endif /* __cplusplus */
+
+/* ---- Known ckernel.h incompatibility ---- */
+/* ckernel.h line 316 uses `volatile std::uint32_t short *tt_reg_ptr` which
+ * is a GCC extension for 16-bit pointer width. Clang doesn't support this.
+ * This function (get_cfg16_pointer) is NOT used by SFPU kernels — it's a
+ * hardware config accessor. tt-metal should wrap it in #ifndef __clang__
+ * to fix. For now, SFPU kernels compile fine without ckernel.h. */
 
 /* ---- Architecture detection ---- */
 /* GCC: __riscv_xtttensixwh, __riscv_xtttensixbh
