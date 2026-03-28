@@ -79,6 +79,7 @@ run_test "llc compiles with -mcpu=tensix-$ARCH" \
 
 # ---- Test 4: clang frontend emits SFPU intrinsics ----
 TMPDIR=$(mktemp -d)
+trap "rm -rf $TMPDIR" EXIT
 cat > "$TMPDIR/test_builtins.c" << 'CEOF'
 void test_nop(void) { __builtin_riscv_tt_sfpnop(); }
 void test_pushc(void) { __builtin_riscv_tt_sfppushc(); }
@@ -166,8 +167,19 @@ if [ -d "$PROJECT_DIR/tests/encoding" ]; then
     fi
 fi
 
-# Cleanup
-rm -rf "$TMPDIR"
+# ---- Test 10: actual codegen (compile to assembly, verify SFPU instructions) ----
+cat > "$TMPDIR/test_codegen.c" << 'CEOF'
+#include "sfpi_compat.h"
+void test_codegen(void) {
+    unsigned int v = __builtin_riscv_tt_sfploadi(0, 0x3F80);
+    unsigned int w = __builtin_riscv_tt_sfpmad(v, v, 9, 0);
+    __builtin_riscv_tt_sfpstore(w, 0, 7, 0);
+}
+CEOF
+run_test "codegen emits SFPU assembly" \
+    "$CLANG --target=riscv32-unknown-elf -march=$MARCH -mabi=ilp32 $DEFINE -O2 -S -I$SCRIPT_DIR $TMPDIR/test_codegen.c -o $TMPDIR/test_codegen.s && grep -q 'sfploadi' $TMPDIR/test_codegen.s && grep -q 'sfpmad' $TMPDIR/test_codegen.s && grep -q 'sfpstore' $TMPDIR/test_codegen.s"
+
+# Cleanup handled by trap
 
 echo ""
 echo "=== Results: $PASS passed, $FAIL failed ==="

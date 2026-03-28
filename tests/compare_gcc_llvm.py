@@ -42,17 +42,19 @@ from pathlib import Path
 # ============================================================================
 
 PROJECT = Path(__file__).parent.parent
-BUILD = PROJECT / "llvm-project-upstream" / "build" / "bin"
+BUILD = Path(os.environ.get("LLVM_DIR",
+             str(PROJECT / "llvm-project-upstream" / "build" / "bin")))
 
 LLVM_MC  = str(BUILD / "llvm-mc")
 LLC      = str(BUILD / "llc")
 CLANG    = str(BUILD / "clang")
 
-# Find GCC
-GCC_CANDIDATES = [
+# Find GCC — check env var first, then known paths
+GCC_CANDIDATES = list(filter(None, [
+    os.environ.get("SFPI_GCC"),
     "/proxmox/tt/tt-metal/runtime/sfpi/compiler/bin/riscv-tt-elf-g++",
     "/opt/tenstorrent/sfpi/compiler/bin/riscv32-unknown-elf-gcc",
-]
+]))
 GCC = None
 GCC_AS = None
 GCC_OBJDUMP = None
@@ -267,7 +269,13 @@ def test_immediate_widths():
 # ============================================================================
 
 def test_round_trip():
-    """Assemble → disassemble → reassemble and verify stable encoding."""
+    """Assemble → disassemble → reassemble and verify stable encoding.
+
+    NOTE: SFPU disassembly is not yet implemented in llvm-mc, so all
+    instructions currently produce "SKIP" (assemble succeeds but disassembly
+    returns empty). This test validates that encoding doesn't crash and
+    is ready to verify round-trip stability once disassembly is added.
+    """
     print("\n=== Test 3: Assembly round-trip (encode → decode → re-encode) ===")
 
     test_lines = [
@@ -648,6 +656,53 @@ def test_immediate_widths_wh():
 
 
 # ============================================================================
+# Test 8: Negative tests — instructions that MUST be rejected
+# ============================================================================
+
+def test_negative_cases():
+    """Verify BH-only instructions are rejected on WH, and vice versa."""
+    print("\n=== Test 8: Negative tests (must-reject cases) ===")
+
+    tests = [
+        # BH-only instructions on WH target
+        ("sfpmul24 on WH (BH-only)", "sfpmul24 l0, l1, l9, l2, 0", "wh", False),
+        ("sfparecip on WH (BH-only)", "sfparecip l0, l1, 0, 0", "wh", False),
+        ("sfpgt on WH (BH-only)", "sfpgt 2, l3, 0, 0", "wh", False),
+        ("sfple on WH (BH-only)", "sfple 2, l3, 0, 0", "wh", False),
+
+        # BH addr_mode overflow (3-bit max = 7)
+        ("BH addr_mode=8 (overflow)", "sfpload l0, 0, 8, 0", "bh", False),
+
+        # WH addr_mode overflow (2-bit max = 3)
+        ("WH addr_mode=4 (overflow)", "sfpload l0, 0, 4, 0", "wh", False),
+
+        # Valid cases that SHOULD succeed (sanity checks)
+        ("sfpmul24 on BH (valid)", "sfpmul24 l0, l1, l9, l2, 0", "bh", True),
+        ("WH addr_mode=3 (valid)", "sfpload l0, 0, 3, 0", "wh", True),
+        ("BH addr_mode=7 (valid)", "sfpload l0, 0, 7, 0", "bh", True),
+    ]
+
+    passed = 0
+    failed = 0
+    for name, asm_line, arch, should_succeed in tests:
+        word, err = llvm_mc_encode(asm_line, arch)
+        success = (word is not None)
+        if success == should_succeed:
+            if VERBOSE:
+                status = "accepted" if success else "rejected"
+                print(f"  PASS  {name}: correctly {status}")
+            passed += 1
+        else:
+            expected_str = "accept" if should_succeed else "reject"
+            actual_str = "accepted" if success else "rejected"
+            print(f"  FAIL  {name}: should {expected_str}, but {actual_str}")
+            failed += 1
+
+    print(f"  Negative tests: {passed}/{passed+failed} passed")
+    return failed
+
+
+# ============================================================================
 # Main
 # ============================================================================
 
@@ -669,6 +724,7 @@ def main():
     total_failures += test_immediate_widths_wh()
     total_failures += test_round_trip()
     total_failures += test_corner_cases()
+    total_failures += test_negative_cases()
     total_failures += test_gcc_vs_llvm_kernels()
 
     print("\n" + "=" * 60)

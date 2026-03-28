@@ -1,22 +1,46 @@
 #!/bin/bash
 # Test all ckernel_sfpu_*.h files for compilation under LLVM/clang.
+#
 # Usage: ./tests/test_all_kernels.sh [--verbose]
+#
+# Environment variables (override defaults):
+#   TT_METAL_HOME     — tt-metal source tree (default: /proxmox/tt/tt-metal)
+#   SFPI_GCC12_CXX    — GCC 12 C++ stdlib headers
+#   SFPI_SYSROOT      — bare-metal C headers
+#   LLVM_DIR           — LLVM build bin directory
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_DIR="$(dirname "$SCRIPT_DIR")"
-LLVM="$REPO_DIR/llvm-project-upstream/build/bin"
+LLVM="${LLVM_DIR:-$REPO_DIR/llvm-project-upstream/build/bin}"
 COMPAT="$REPO_DIR/switchover/sfpi_compat.h"
-TT="/proxmox/tt/tt-metal"
+TT="${TT_METAL_HOME:-/proxmox/tt/tt-metal}"
 SFPI="$TT/runtime/sfpi/include"
-GCC12="/opt/tenstorrent/sfpi/compiler/riscv32-unknown-elf/include/c++/12.4.0"
-SYSROOT="/opt/tenstorrent/sfpi/compiler/riscv32-unknown-elf/include"
+GCC12="${SFPI_GCC12_CXX:-/opt/tenstorrent/sfpi/compiler/riscv32-unknown-elf/include/c++/12.4.0}"
+SYSROOT="${SFPI_SYSROOT:-/opt/tenstorrent/sfpi/compiler/riscv32-unknown-elf/include}"
 KERNEL_DIR="$TT/tt_metal/hw/ckernels/blackhole/metal/llk_api/llk_sfpu"
 
 VERBOSE=0
 [ "${1:-}" = "--verbose" ] && VERBOSE=1
 
+# Validate dependencies
 CLANG="$LLVM/clang++"
+if [ ! -x "$CLANG" ]; then
+    echo "ERROR: clang++ not found at $CLANG"
+    echo "  Set LLVM_DIR to your LLVM build bin directory"
+    exit 1
+fi
+if [ ! -d "$TT" ]; then
+    echo "ERROR: tt-metal not found at $TT"
+    echo "  Set TT_METAL_HOME to your tt-metal source tree"
+    exit 1
+fi
+if [ ! -d "$GCC12" ]; then
+    echo "ERROR: GCC 12 C++ headers not found at $GCC12"
+    echo "  Set SFPI_GCC12_CXX to the GCC 12 C++ include directory"
+    exit 1
+fi
+
 FLAGS="--target=riscv32-unknown-elf -march=rv32imac_xttsfpu_xttsfpubh \
   -mabi=ilp32 -D__SFPU_BH__ -DTENSIX_FIRMWARE -DLOCAL_MEM_EN=0 -DARCH_BLACKHOLE -DCOMPILE_FOR_TRISC \
   -include $COMPAT \
