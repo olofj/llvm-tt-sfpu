@@ -71,9 +71,11 @@ if [ ! -d "$GCC12" ]; then
     exit 1
 fi
 
+CLANG_SFPI_INC="$REPO_DIR/switchover/clang_sfpi_include"
 FLAGS="--target=riscv32-unknown-elf -march=rv32imac_xttsfpu_xttsfpubh \
   -mabi=ilp32 -D__SFPU_BH__ -DTENSIX_FIRMWARE -DLOCAL_MEM_EN=0 -DARCH_BLACKHOLE -DCOMPILE_FOR_TRISC \
   -include $COMPAT \
+  -I$CLANG_SFPI_INC -I$REPO_DIR/switchover \
   -I$TT -I$TT/ttnn -I$TT/ttnn/cpp -I$TT/tt_metal \
   -I$TT/tt_metal/hw/inc -I$TT/tt_metal/hw/inc/internal/tt-1xx/blackhole \
   -I$TT/tt_metal/third_party/tt_llk/common \
@@ -104,6 +106,7 @@ for kernel in "$KERNEL_DIR"/ckernel_sfpu_*.h; do
     cat > "$TMPDIR/test.cpp" << EOF
 #include "ckernel.h"
 #include "sfpi.h"
+#include "sfpi_postinclude.h"
 using namespace sfpi;
 // Common dependencies used across multiple kernels
 #if __has_include("llk_sfpu_types.h")
