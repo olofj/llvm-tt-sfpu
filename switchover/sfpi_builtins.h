@@ -22,8 +22,21 @@ namespace sfpi {
 /* --- Loads --- */
 #define __builtin_rvtt_sfpload(addr, mod0, mode) \
     static_cast<__xtt_vector>(__builtin_riscv_tt_sfpload(mod0, mode, addr))
+
+/* sfpxloadi: extended load immediate.
+ * For 16-bit modes (FLOATB, FLOATA, SHORT, USHORT): single SFPLOADI.
+ * For 32-bit modes (INT32=16, UINT32=17, FLOAT=18): decompose into UPPER+LOWER.
+ * The hardware's 2-word encoding for 32-bit modes isn't supported by our backend,
+ * so we decompose at the C level. UPPER loads bits[31:16], LOWER ORs bits[15:0]. */
+#define __builtin_rvtt_sfpxloadi_32(imm) \
+    (((imm) & 0xFFFF) != 0 \
+        ? (__builtin_riscv_tt_sfploadi(8, ((imm) >> 16) & 0xFFFF), \
+           static_cast<__xtt_vector>(__builtin_riscv_tt_sfploadi(10, (imm) & 0xFFFF))) \
+        : static_cast<__xtt_vector>(__builtin_riscv_tt_sfploadi(8, ((imm) >> 16) & 0xFFFF)))
 #define __builtin_rvtt_sfpxloadi(imm, mod0) \
-    static_cast<__xtt_vector>(__builtin_riscv_tt_sfploadi(mod0, imm))
+    ((mod0) >= 16 && (unsigned)(imm) > 0xFFFFu \
+        ? __builtin_rvtt_sfpxloadi_32(imm) \
+        : static_cast<__xtt_vector>(__builtin_riscv_tt_sfploadi(mod0, imm)))
 
 /* --- Store --- */
 #define __builtin_rvtt_sfpstore(src, addr, mod0, mode) \
@@ -49,26 +62,26 @@ namespace sfpi {
 
 /* --- Comparisons (set CC, return dummy 0) --- */
 #define __builtin_rvtt_sfpxfcmps(v, f, mod) \
-    (__builtin_riscv_tt_sfpsetcc(v, f, mod), 0)
+    (__builtin_riscv_tt_sfpxfcmps(v, f, mod), 0)
 #define __builtin_rvtt_sfpxfcmpv(a, b, mod) \
     (__builtin_riscv_tt_sfpsetcc(a, 0, mod), 0)
 #define __builtin_rvtt_sfpxicmps(v, i, mod) \
-    (__builtin_riscv_tt_sfpsetcc(v, i, mod), 0)
+    (__builtin_riscv_tt_sfpxfcmps(v, i, mod), 0)
 
 /* --- Config --- */
 #define __builtin_rvtt_sfpwriteconfig_v(t, src) \
     __builtin_riscv_tt_sfpconfig(0, src, t)
 
 /* --- Set exp/man/sgn (immediate forms) --- */
-#define __builtin_rvtt_sfpsetexp_i(src, imm, mod) \
-    static_cast<__xtt_vector>(__builtin_riscv_tt_sfpsetexp(src, imm, mod))
-#define __builtin_rvtt_sfpsetman_i(src, imm, mod) \
-    static_cast<__xtt_vector>(__builtin_riscv_tt_sfpsetman(src, imm, mod))
-#define __builtin_rvtt_sfpsetsgn_i(src, imm, mod) \
-    static_cast<__xtt_vector>(__builtin_riscv_tt_sfpsetsgn(src, imm, mod))
+#define __builtin_rvtt_sfpsetexp_i(src, imm, mod1) \
+    static_cast<__xtt_vector>(__builtin_riscv_tt_sfpsetexp(src, imm, mod1))
+#define __builtin_rvtt_sfpsetman_i(src, imm, mod1) \
+    static_cast<__xtt_vector>(__builtin_riscv_tt_sfpsetman(src, imm, mod1))
+#define __builtin_rvtt_sfpsetsgn_i(src, imm, mod1) \
+    static_cast<__xtt_vector>(__builtin_riscv_tt_sfpsetsgn(src, imm, mod1))
 #define __builtin_rvtt_sfpdivp2(src, imm, mod) \
     static_cast<__xtt_vector>(__builtin_riscv_tt_sfpdivp2(src, imm, mod))
-#define __builtin_rvtt_sfpstochrnd_i(src, imm, mod, mode) \
+#define __builtin_rvtt_sfpstochrnd_i(src, imm, mode, mod) \
     static_cast<__xtt_vector>(__builtin_riscv_tt_sfpstochrnd(mode, imm, src, src, mod))
 
 /* --- Set exp/man/sgn (vector forms) --- */

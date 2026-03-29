@@ -59,6 +59,16 @@
 #include <cstdint>
 #include <limits>
 #endif
+/* ---- .ttinsn → .word with ROL2 swizzle ---- */
+/* TT's GCC .ttinsn applies a rotate-left-by-2 to the instruction word.
+ * This swizzle moves the 32-bit marker (bits[1:0]=0b11) to bits[3:2],
+ * telling the Tensix decoder to route the word to the SFPU coprocessor.
+ * Define .ttinsn as an asm macro that emits .word (asm macros can't do
+ * arithmetic, so the ROL2 happens in the C INSTRUCTION_WORD macro below).
+ * The asm macro exists for compatibility with code that uses .ttinsn
+ * directly in inline asm — for those cases, the caller must pre-apply ROL2. */
+__asm__(".macro .ttinsn operand\n.word \\operand\n.endm\n");
+
 #pragma push_macro("__has_builtin")
 #undef __has_builtin
 #define __has_builtin(x) 1

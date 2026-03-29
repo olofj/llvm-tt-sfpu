@@ -16,6 +16,11 @@
 #define short
 #include_next "ckernel.h"
 #undef short
+/* Override INSTRUCTION_WORD after ckernel_ops.h defines it.
+ * Apply ROL2 swizzle so Tensix routes the word to the SFPU coprocessor. */
+#undef INSTRUCTION_WORD
+#define INSTRUCTION_WORD(x) __asm__ __volatile__( \
+    ".word %0" : : "i"(((unsigned)(x) << 2) | ((unsigned)(x) >> 30)))
 #else
 #include_next "ckernel.h"
 #endif
