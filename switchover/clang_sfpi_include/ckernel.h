@@ -11,6 +11,8 @@
 #include <cstring>
 #include <utility>
 #include <cstdint>
+#include <limits>
+#include <type_traits>
 #define short
 #include_next "ckernel.h"
 #undef short
