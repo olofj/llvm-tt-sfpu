@@ -16,38 +16,38 @@ LLVM="${LLVM_DIR:-$REPO_DIR/llvm-project-upstream/build/bin}"
 COMPAT="$REPO_DIR/switchover/sfpi_compat.h"
 TT="${TT_METAL_HOME:-/proxmox/tt/tt-metal}"
 SFPI="$TT/runtime/sfpi/include"
-# Detect GCC C++ headers: try GCC 15 (riscv-tt-elf), fall back to GCC 12
-if [ -z "${SFPI_GCC12_CXX:-}" ]; then
-    if [ -d "/opt/tenstorrent/sfpi/compiler/riscv-tt-elf/include/c++/15.1.0" ]; then
-        GCC12="/opt/tenstorrent/sfpi/compiler/riscv-tt-elf/include/c++/15.1.0"
-    else
-        GCC12="/opt/tenstorrent/sfpi/compiler/riscv32-unknown-elf/include/c++/12.4.0"
-    fi
-else
-    GCC12="$SFPI_GCC12_CXX"
-fi
-if [ -z "${SFPI_SYSROOT:-}" ]; then
-    if [ -d "/opt/tenstorrent/sfpi/compiler/riscv-tt-elf/include" ]; then
-        SYSROOT="/opt/tenstorrent/sfpi/compiler/riscv-tt-elf/include"
-    else
-        SYSROOT="/opt/tenstorrent/sfpi/compiler/riscv32-unknown-elf/include"
-    fi
-else
-    SYSROOT="$SFPI_SYSROOT"
-fi
-# Auto-detect target triple subdirectory for GCC C++ headers
-# GCC puts bits/c++config.h under a target-specific subdir
-if [ -n "${SFPI_GCC_TARGET_DIR:-}" ]; then
-    GCC_TARGET_DIR="$SFPI_GCC_TARGET_DIR"
-else
-    GCC_TARGET_DIR="${GCC12}"
-    for subdir in riscv32-unknown-elf riscv-tt-elf/bh-ilp32 riscv-tt-elf riscv64-linux-gnu; do
-        if [ -d "${GCC12}/${subdir}/bits" ]; then
-            GCC_TARGET_DIR="${GCC12}/${subdir}"
+# Detect GCC C++ headers and sysroot from /opt/tenstorrent/sfpi
+# Supports both GCC 15 (riscv-tt-elf) and GCC 12 (riscv32-unknown-elf) layouts
+GCC_CXX="${SFPI_GCC12_CXX:-}"
+SYSROOT="${SFPI_SYSROOT:-}"
+GCC_TARGET_DIR=""
+if [ -z "$GCC_CXX" ] || [ -z "$SYSROOT" ]; then
+    for triple in riscv-tt-elf riscv32-unknown-elf; do
+        base="/opt/tenstorrent/sfpi/compiler/${triple}/include"
+        if [ -d "$base" ]; then
+            [ -z "$SYSROOT" ] && SYSROOT="$base"
+            # Find the C++ headers (pick highest version)
+            if [ -z "$GCC_CXX" ]; then
+                for ver in "$base"/c++/*/; do
+                    [ -d "$ver" ] && GCC_CXX="$ver"
+                done
+                # Remove trailing slash
+                GCC_CXX="${GCC_CXX%/}"
+            fi
             break
         fi
     done
 fi
+# Auto-detect target triple subdirectory for GCC C++ headers
+# GCC puts bits/c++config.h under a target-specific subdir (e.g. riscv-tt-elf/bh-ilp32)
+GCC_TARGET_DIR="${GCC_CXX}"
+for subdir in riscv32-unknown-elf riscv-tt-elf/bh-ilp32 riscv-tt-elf; do
+    if [ -d "${GCC_CXX}/${subdir}/bits" ]; then
+        GCC_TARGET_DIR="${GCC_CXX}/${subdir}"
+        break
+    fi
+done
+GCC12="$GCC_CXX"
 KERNEL_DIR="$TT/tt_metal/hw/ckernels/blackhole/metal/llk_api/llk_sfpu"
 
 VERBOSE=0
