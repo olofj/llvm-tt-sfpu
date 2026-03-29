@@ -16,8 +16,38 @@ LLVM="${LLVM_DIR:-$REPO_DIR/llvm-project-upstream/build/bin}"
 COMPAT="$REPO_DIR/switchover/sfpi_compat.h"
 TT="${TT_METAL_HOME:-/proxmox/tt/tt-metal}"
 SFPI="$TT/runtime/sfpi/include"
-GCC12="${SFPI_GCC12_CXX:-/opt/tenstorrent/sfpi/compiler/riscv32-unknown-elf/include/c++/12.4.0}"
-SYSROOT="${SFPI_SYSROOT:-/opt/tenstorrent/sfpi/compiler/riscv32-unknown-elf/include}"
+# Detect GCC C++ headers: try GCC 15 (riscv-tt-elf), fall back to GCC 12
+if [ -z "${SFPI_GCC12_CXX:-}" ]; then
+    if [ -d "/opt/tenstorrent/sfpi/compiler/riscv-tt-elf/include/c++/15.1.0" ]; then
+        GCC12="/opt/tenstorrent/sfpi/compiler/riscv-tt-elf/include/c++/15.1.0"
+    else
+        GCC12="/opt/tenstorrent/sfpi/compiler/riscv32-unknown-elf/include/c++/12.4.0"
+    fi
+else
+    GCC12="$SFPI_GCC12_CXX"
+fi
+if [ -z "${SFPI_SYSROOT:-}" ]; then
+    if [ -d "/opt/tenstorrent/sfpi/compiler/riscv-tt-elf/include" ]; then
+        SYSROOT="/opt/tenstorrent/sfpi/compiler/riscv-tt-elf/include"
+    else
+        SYSROOT="/opt/tenstorrent/sfpi/compiler/riscv32-unknown-elf/include"
+    fi
+else
+    SYSROOT="$SFPI_SYSROOT"
+fi
+# Auto-detect target triple subdirectory for GCC C++ headers
+# GCC puts bits/c++config.h under a target-specific subdir
+if [ -n "${SFPI_GCC_TARGET_DIR:-}" ]; then
+    GCC_TARGET_DIR="$SFPI_GCC_TARGET_DIR"
+else
+    GCC_TARGET_DIR="${GCC12}"
+    for subdir in riscv32-unknown-elf riscv-tt-elf/bh-ilp32 riscv-tt-elf riscv64-linux-gnu; do
+        if [ -d "${GCC12}/${subdir}/bits" ]; then
+            GCC_TARGET_DIR="${GCC12}/${subdir}"
+            break
+        fi
+    done
+fi
 KERNEL_DIR="$TT/tt_metal/hw/ckernels/blackhole/metal/llk_api/llk_sfpu"
 
 VERBOSE=0
@@ -54,7 +84,7 @@ FLAGS="--target=riscv32-unknown-elf -march=rv32imac_xttsfpu_xttsfpubh \
   -I$SFPI \
   -I$TT/tt_metal/third_party/tt_llk/tt_llk_blackhole/common/inc/sfpu \
   -I$KERNEL_DIR -I$KERNEL_DIR/.. \
-  -isystem $GCC12 -isystem ${GCC12}/riscv32-unknown-elf -isystem $SYSROOT \
+  -isystem $GCC12 -isystem $GCC_TARGET_DIR -isystem $SYSROOT \
   -O2 -std=c++17 -fno-exceptions -ffast-math \
   -Wno-builtin-macro-redefined -Wno-macro-redefined -Wno-unknown-attributes \
   -fsyntax-only"

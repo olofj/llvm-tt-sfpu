@@ -1,0 +1,121 @@
+/*
+ * sfpi_builtins.h — LLVM-compatible builtin mapping layer
+ *
+ * Replaces the system sfpi_builtins.h which maps short-form builtins
+ * to long-form GCC builtins. This version maps directly to LLVM
+ * intrinsics via the __builtin_riscv_tt_* builtins.
+ *
+ * The system sfpi.h uses short-form builtins like:
+ *   __builtin_rvtt_sfpload(addr, mod0, mode)
+ * The system sfpi_builtins.h expands them to long-form GCC builtins:
+ *   __builtin_rvtt_sfpload(instrn_buffer, addr, 0, 0, mod0, mode)
+ * This file short-circuits that to LLVM builtins:
+ *   __builtin_riscv_tt_sfpload(mod0, mode, addr)
+ */
+
+#pragma once
+
+#ifdef __clang__
+
+namespace sfpi {
+
+/* --- Loads --- */
+#define __builtin_rvtt_sfpload(addr, mod0, mode) \
+    static_cast<__xtt_vector>(__builtin_riscv_tt_sfpload(mod0, mode, addr))
+#define __builtin_rvtt_sfpxloadi(imm, mod0) \
+    static_cast<__xtt_vector>(__builtin_riscv_tt_sfploadi(mod0, imm))
+
+/* --- Store --- */
+#define __builtin_rvtt_sfpstore(src, addr, mod0, mode) \
+    __builtin_riscv_tt_sfpstore(src, mod0, mode, addr)
+
+/* --- Arithmetic --- */
+#define __builtin_rvtt_sfpmad(a, b, c, mod) \
+    static_cast<__xtt_vector>(__builtin_riscv_tt_sfpmad(a, b, c, mod))
+#define __builtin_rvtt_sfpmul(a, b, mod) \
+    static_cast<__xtt_vector>(__builtin_riscv_tt_sfpmul(a, b, 9, mod))
+#define __builtin_rvtt_sfpadd(a, b, mod) \
+    static_cast<__xtt_vector>(__builtin_riscv_tt_sfpadd(10, a, b, mod))
+
+/* --- Integer arithmetic --- */
+#define __builtin_rvtt_sfpxiadd_v(dst, src, mod) \
+    static_cast<__xtt_vector>(__builtin_riscv_tt_sfpiadd(src, 0, mod))
+#define __builtin_rvtt_sfpxiadd_i(src, imm, mod) \
+    static_cast<__xtt_vector>(__builtin_riscv_tt_sfpiadd(src, imm, mod))
+
+/* --- Shift --- */
+#define __builtin_rvtt_sfpshft_i(src, imm, mod) \
+    static_cast<__xtt_vector>(__builtin_riscv_tt_sfpshft(src, imm, mod))
+
+/* --- Comparisons (set CC, return dummy 0) --- */
+#define __builtin_rvtt_sfpxfcmps(v, f, mod) \
+    (__builtin_riscv_tt_sfpsetcc(v, f, mod), 0)
+#define __builtin_rvtt_sfpxfcmpv(a, b, mod) \
+    (__builtin_riscv_tt_sfpsetcc(a, 0, mod), 0)
+#define __builtin_rvtt_sfpxicmps(v, i, mod) \
+    (__builtin_riscv_tt_sfpsetcc(v, i, mod), 0)
+
+/* --- Config --- */
+#define __builtin_rvtt_sfpwriteconfig_v(t, src) \
+    __builtin_riscv_tt_sfpconfig(0, src, t)
+
+/* --- Set exp/man/sgn (immediate forms) --- */
+#define __builtin_rvtt_sfpsetexp_i(src, imm, mod) \
+    static_cast<__xtt_vector>(__builtin_riscv_tt_sfpsetexp(src, imm, mod))
+#define __builtin_rvtt_sfpsetman_i(src, imm, mod) \
+    static_cast<__xtt_vector>(__builtin_riscv_tt_sfpsetman(src, imm, mod))
+#define __builtin_rvtt_sfpsetsgn_i(src, imm, mod) \
+    static_cast<__xtt_vector>(__builtin_riscv_tt_sfpsetsgn(src, imm, mod))
+#define __builtin_rvtt_sfpdivp2(src, imm, mod) \
+    static_cast<__xtt_vector>(__builtin_riscv_tt_sfpdivp2(src, imm, mod))
+#define __builtin_rvtt_sfpstochrnd_i(src, imm, mod, mode) \
+    static_cast<__xtt_vector>(__builtin_riscv_tt_sfpstochrnd(mode, imm, src, src, mod))
+
+/* --- Set exp/man/sgn (vector forms) --- */
+#define __builtin_rvtt_sfpsetexp_v(v, exp, mod) \
+    static_cast<__xtt_vector>(__builtin_riscv_tt_sfpsetexp(v, 0, mod))
+#define __builtin_rvtt_sfpsetman_v(v, man, mod) \
+    static_cast<__xtt_vector>(__builtin_riscv_tt_sfpsetman(v, 0, mod))
+#define __builtin_rvtt_sfpsetsgn_v(v, sgn, mod) \
+    static_cast<__xtt_vector>(__builtin_riscv_tt_sfpsetsgn(v, 0, mod))
+#define __builtin_rvtt_sfpstochrnd_v(mode, src_b, src_c, mod) \
+    static_cast<__xtt_vector>(__builtin_riscv_tt_sfpstochrnd(mode, 0, src_b, src_c, mod))
+
+/* --- 24-bit multiply --- */
+#define __builtin_rvtt_sfpmul24(a, b, mod) \
+    static_cast<__xtt_vector>(__builtin_riscv_tt_sfpmul24(a, b, 9, mod))
+
+/* --- Misc --- */
+#define __builtin_rvtt_sfparecip(src, mod) \
+    static_cast<__xtt_vector>(__builtin_riscv_tt_sfparecip(src, 0, mod))
+#define __builtin_rvtt_sfpcast(src, mod) \
+    static_cast<__xtt_vector>(__builtin_riscv_tt_sfpcast(src, 0, mod))
+#define __builtin_rvtt_sfpreadconfig(mod) \
+    static_cast<__xtt_vector>(__builtin_riscv_tt_sfpreadlreg(mod))
+#define __builtin_rvtt_sfpxicmpv(a, b, mod) \
+    (__builtin_riscv_tt_sfpsetcc(a, 0, mod), 0)
+#define __builtin_rvtt_sfpshft_v(dst, src, mod) \
+    static_cast<__xtt_vector>(__builtin_riscv_tt_sfpshft(dst, 0, mod))
+
+} // namespace sfpi
+
+#else /* GCC — use original long-form mapping */
+
+namespace sfpi {
+
+#define __builtin_rvtt_sfpxicmps(src, imm, mod1) __builtin_rvtt_sfpxicmps(ckernel::instrn_buffer, src, imm, 0, 0, mod1)
+#define __builtin_rvtt_sfpxfcmps(src, imm, mod1) __builtin_rvtt_sfpxfcmps(ckernel::instrn_buffer, src, imm, 0, 0, mod1)
+#define __builtin_rvtt_sfpxiadd_i(src, imm, mod1) __builtin_rvtt_sfpxiadd_i(ckernel::instrn_buffer, src, imm, 0, 0, mod1)
+#define __builtin_rvtt_sfpxloadi(imm, mod0) __builtin_rvtt_sfpxloadi(ckernel::instrn_buffer, imm, 0, 0, mod0)
+#define __builtin_rvtt_sfpshft_i(src, imm, mod1) __builtin_rvtt_sfpshft_i(ckernel::instrn_buffer, src, imm, 0, 0, mod1)
+#define __builtin_rvtt_sfpload(addr, mod0, mode) __builtin_rvtt_sfpload(ckernel::instrn_buffer, addr, 0, 0, mod0, mode)
+#define __builtin_rvtt_sfpstore(src, addr, mod0, mode) __builtin_rvtt_sfpstore(ckernel::instrn_buffer, src, addr, 0, 0, mod0, mode)
+#define __builtin_rvtt_sfpsetexp_i(src, imm, mod1) __builtin_rvtt_sfpsetexp_i(ckernel::instrn_buffer, src, imm, 0, 0, mod1)
+#define __builtin_rvtt_sfpsetman_i(src, imm, mod1) __builtin_rvtt_sfpsetman_i(ckernel::instrn_buffer, src, imm, 0, 0, mod1)
+#define __builtin_rvtt_sfpsetsgn_i(src, imm, mod1) __builtin_rvtt_sfpsetsgn_i(ckernel::instrn_buffer, src, imm, 0, 0, mod1)
+#define __builtin_rvtt_sfpdivp2(src, imm, mod1) __builtin_rvtt_sfpdivp2(ckernel::instrn_buffer, src, imm, 0, 0, mod1)
+#define __builtin_rvtt_sfpstochrnd_i(src, imm, mod1, mode) __builtin_rvtt_sfpstochrnd_i(ckernel::instrn_buffer, src, imm, 0, 0, mod1, mode)
+
+} // namespace sfpi
+
+#endif /* __clang__ */

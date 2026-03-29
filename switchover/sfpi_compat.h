@@ -35,22 +35,33 @@
 #define _XTT(x) (x)
 #endif
 
-/* ---- __has_builtin override ---- */
-/* sfpi.h checks __has_builtin(__builtin_rvtt_synth_opcode) and errors if
- * false. Since we provide all GCC SFPI builtins via macro mappings below,
- * we override __has_builtin to always return true. This is safe because
- * SFPU kernel code doesn't use __has_builtin for non-SFPI purposes. */
-#pragma push_macro("__has_builtin")
-#undef __has_builtin
-#define __has_builtin(x) 1
-
 /* ---- Type fixups for clang on riscv32 ---- */
 /* On riscv32, clang maps int32_t = int and uint32_t = unsigned int.
  * GCC maps them differently (int32_t = long), allowing sfpi_fp16.h to
  * define separate constructors for int and int32_t. We make int32_t = long
- * to match GCC's type mapping and avoid constructor redeclaration errors. */
+ * to match GCC's type mapping and avoid constructor redeclaration errors.
+ * MUST come before any standard header includes that define int32_t. */
 #define __INT32_TYPE__ long
 #define __UINT32_TYPE__ unsigned long
+
+/* ---- __has_builtin override ---- */
+/* sfpi.h checks __has_builtin(__builtin_rvtt_synth_opcode) and errors if
+ * false. Since we provide all GCC SFPI builtins via macro mappings below,
+ * we override __has_builtin to always return true.
+ *
+ * However, GCC 15's libstdc++ headers also use __has_builtin to gate
+ * compiler-specific type traits (e.g. __remove_reference) that clang may
+ * not support. Pre-include standard headers that use __has_builtin so they
+ * see the real builtin check (include guards prevent re-processing when
+ * sfpi.h includes them again). */
+#ifdef __cplusplus
+#include <type_traits>
+#include <cstdint>
+#include <limits>
+#endif
+#pragma push_macro("__has_builtin")
+#undef __has_builtin
+#define __has_builtin(x) 1
 
 /* ---- C++ only: ckernel stub and 6-arg inline function stubs ---- */
 #ifdef __cplusplus
@@ -65,23 +76,6 @@ namespace ckernel { static volatile unsigned int instrn_buffer[1] = {0}; }
  *   __builtin_rvtt_sfpxicmps(v,i,mod1) → __builtin_rvtt_sfpxicmps(buf,v,i,0,0,mod1)
  * The self-reference prevention causes the 6-arg form to survive as a function
  * call. We provide inline functions matching the 6-arg signature. */
-/* Accept any pointer type for buf (ckernel.h uses volatile uint32_t(&)[]
- * which becomes volatile unsigned long* with our __INT32_TYPE__=long fix) */
-template<typename T>
-__attribute__((always_inline))
-static inline int __builtin_rvtt_sfpxicmps(
-    T*, unsigned int v, unsigned int i,
-    unsigned int, unsigned int, unsigned int mod1) {
-    __builtin_riscv_tt_sfpsetcc(v, i, mod1);
-    return 0;
-}
-template<typename T>
-__attribute__((always_inline))
-static inline unsigned int __builtin_rvtt_sfpshft_i(
-    T*, unsigned int dst, unsigned int imm12,
-    unsigned int, unsigned int, unsigned int mod1) {
-    return __builtin_riscv_tt_sfpshft(dst, imm12, mod1);
-}
 #endif /* __cplusplus */
 
 /* ---- Known ckernel.h incompatibility ---- */
