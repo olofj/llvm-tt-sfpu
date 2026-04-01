@@ -126,7 +126,11 @@ namespace ckernel { static volatile unsigned int instrn_buffer[1] = {0}; }
 
 /* Condition codes */
 #define __builtin_rvtt_sfpsetcc_i(imm, mod) __builtin_riscv_tt_sfpsetcc(0, imm, mod)
-#define __builtin_rvtt_sfpsetcc_v(src, mod) __builtin_riscv_tt_sfpsetcc(src, 0, mod)
+/* sfpsetcc_v: In GCC, comparison builtins (sfpxfcmps, sfpxfcmpv, sfpxicmps)
+ * return a condition code that sfpsetcc_v then applies to the CC stack.
+ * In LLVM, the comparison builtins already call sfpsetcc directly (setting
+ * the CC), so sfpsetcc_v is a no-op — the CC is already set. */
+#define __builtin_rvtt_sfpsetcc_v(src, mod) ((void)0)
 
 /* Register operations — _XTT() casts return to __xtt_vector for overload resolution */
 #define __builtin_rvtt_sfpmov(src, mod) _XTT(__builtin_riscv_tt_sfpmov(src, 0, mod))
@@ -310,10 +314,12 @@ namespace ckernel { static volatile unsigned int instrn_buffer[1] = {0}; }
 /* sfpxvif: begin a v_if region. Returns a dependency token (int). */
 #define __builtin_rvtt_sfpxvif() 0
 
-/* sfpxcondb: conditional-branch from register and dependency token.
- * GCC lowers to SFPSETCC. Returns dummy condition result. */
-#define __builtin_rvtt_sfpxcondb(src, dep) \
-    (__builtin_riscv_tt_sfpsetcc(src, 0, 0), 0)
+/* sfpxcondb: apply a condition result to the CC stack.
+ * In GCC, comparison builtins (sfpxfcmps etc.) return a condition code,
+ * and sfpxcondb applies it by calling SFPSETCC. In LLVM, the comparison
+ * builtins already call SFPSETCC directly (setting the CC), so sfpxcondb
+ * is a no-op — the CC is already set. */
+#define __builtin_rvtt_sfpxcondb(src, dep) ((void)0)
 
 /* sfpxcondi: conditional-branch from immediate condition.
  * Takes 1 arg (condition value) and returns as __xtt_vector.
