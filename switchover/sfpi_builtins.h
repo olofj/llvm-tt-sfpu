@@ -86,7 +86,7 @@ namespace sfpi {
 
 /* --- Set exp/man/sgn (vector forms) --- */
 #define __builtin_rvtt_sfpsetexp_v(v, exp, mod) \
-    static_cast<__xtt_vector>(__builtin_riscv_tt_sfpsetexp(v, 0, mod))
+    static_cast<__xtt_vector>(__builtin_riscv_tt_sfpsetexp_lv((unsigned int)(v), (unsigned int)(exp), 0, mod))
 #define __builtin_rvtt_sfpsetman_v(v, man, mod) \
     static_cast<__xtt_vector>(__builtin_riscv_tt_sfpsetman(v, 0, mod))
 #define __builtin_rvtt_sfpsetsgn_v(v, sgn, mod) \
