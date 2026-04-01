@@ -87,8 +87,10 @@ namespace sfpi {
     static_cast<__xtt_vector>(__builtin_riscv_tt_sfpstochrnd(rnd_mode, imm, src, src, mod1))
 
 /* --- Set exp/man/sgn (vector forms) --- */
+/* sfpsetexp_v: HW does dest = src_c_mantissa | dest_exponent.
+ * So exp goes to live (dest), v goes to src_c. */
 #define __builtin_rvtt_sfpsetexp_v(v, exp, mod) \
-    static_cast<__xtt_vector>(__builtin_riscv_tt_sfpsetexp_lv((unsigned int)(v), (unsigned int)(exp), 0, mod))
+    static_cast<__xtt_vector>(__builtin_riscv_tt_sfpsetexp_lv((unsigned int)(exp), (unsigned int)(v), 0, mod))
 #define __builtin_rvtt_sfpsetman_v(v, man, mod) \
     static_cast<__xtt_vector>(__builtin_riscv_tt_sfpsetman(v, 0, mod))
 #define __builtin_rvtt_sfpsetsgn_v(v, sgn, mod) \
