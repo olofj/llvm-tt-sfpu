@@ -154,7 +154,11 @@ namespace ckernel { static volatile unsigned int instrn_buffer[1] = {0}; }
 #define __builtin_rvtt_sfpxor(dst, src) _XTT(__builtin_riscv_tt_sfpxor(src, 0, 0))
 
 /* Shift vector (variable amount) */
-#define __builtin_rvtt_sfpshft_v(dst, src, mod) _XTT(__builtin_riscv_tt_sfpshft(src, 0, mod))
+/* sfpshft_v(dst, src, mod): shift dst by amount in src. Use _lv so the RA
+ * ties the output to dst (the value being shifted). src goes to lreg_c
+ * (the shift amount). Without _lv, the dst value is lost. */
+#define __builtin_rvtt_sfpshft_v(dst, src, mod) \
+    _XTT(__builtin_riscv_tt_sfpshft_lv((unsigned int)(dst), (unsigned int)(src), 0, mod))
 
 /* Cast / rounding */
 #define __builtin_rvtt_sfpcast(src, mod) _XTT(__builtin_riscv_tt_sfpcast(src, 0, mod))
