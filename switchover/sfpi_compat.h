@@ -340,16 +340,19 @@ namespace ckernel { static volatile unsigned int instrn_buffer[1] = {0}; }
     __builtin_riscv_tt_sfpwritelreg((unsigned int)(val), idx)
 
 /* synth_opcode: emit a raw Tensix opcode. Not an SFPU instruction.
- * Used for rare non-SFPU operations within SFPU kernels. */
+ * MUST use .ttinsn for ROL2 encoding (same reason as ttincrwc). */
 #define __builtin_rvtt_synth_opcode(opcode) \
-    __asm__ volatile(".word %0" :: "i"(opcode))
+    __asm__ volatile(".ttinsn %0" :: "i"(opcode) : "memory")
 
 /* ttincrwc: increment write counter (Tensix scalar instruction, not SFPU).
  * The write counter manages Dst tile addressing.
  * Encoding: TT_OP(0x38, (rwc_cr << 18) | (rwc_d << 14) | (rwc_b << 10) | (rwc_a << 6))
- * Args map: cr→rwc_cr, incr→rwc_d, mask→rwc_b, val→rwc_a */
+ * Args map: cr→rwc_cr, incr→rwc_d, mask→rwc_b, val→rwc_a
+ * MUST use .ttinsn (not .word) for ROL2 encoding — Tensix instructions in the
+ * RISC-V code stream require the ROL2 swizzle so the hardware routes them to
+ * the coprocessor instead of the RISC-V core. */
 #define __builtin_rvtt_ttincrwc(cr, incr, mask, val) \
-    __asm__ volatile(".word %0" :: "i"( \
+    __asm__ volatile(".ttinsn %0" :: "i"( \
         (0x38 << 24) | ((cr) << 18) | ((incr) << 14) | ((mask) << 10) | ((val) << 6)) \
         : "memory")
 
