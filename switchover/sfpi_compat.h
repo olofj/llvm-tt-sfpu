@@ -251,8 +251,13 @@ namespace ckernel { static volatile unsigned int instrn_buffer[1] = {0}; }
 
 /* LUT */
 #define __builtin_rvtt_sfplut(dst, l0, l1, l2, mod) _XTT(__builtin_riscv_tt_sfplut(0, 0))
-#define __builtin_rvtt_sfplutfp32_3r(dst, l0, l1, l2, mod) _XTT(__builtin_riscv_tt_sfplutfp32(dst, mod))
-#define __builtin_rvtt_sfplutfp32_6r(dst, l0, l1, l2, l4, l5, l6, mod) _XTT(__builtin_riscv_tt_sfplutfp32(dst, mod))
+/* sfplutfp32: GCC passes (l0, l1, l2, [l4, l5, l6,] input, mod).
+ * The l-register args are implicit hardware reads — dropped here.
+ * The LLVM intrinsic takes (input_value, mod). */
+#define __builtin_rvtt_sfplutfp32_3r(l0, l1, l2, input, mod) \
+    _XTT(__builtin_riscv_tt_sfplutfp32(input, mod))
+#define __builtin_rvtt_sfplutfp32_6r(l0, l1, l2, l4, l5, l6, input, mod) \
+    _XTT(__builtin_riscv_tt_sfplutfp32(input, mod))
 
 /* Stochastic rounding — intrinsic takes 5 args:
  * (rnd_mode, imm5, lreg_src_b, lreg_src_c, mod1) */
