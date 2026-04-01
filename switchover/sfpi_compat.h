@@ -346,12 +346,41 @@ namespace ckernel { static volatile unsigned int instrn_buffer[1] = {0}; }
     (__builtin_riscv_tt_sfpsetcc(a, 0, mod), 0)
 
 /* sfpreadlreg/sfpwritelreg: L-register read/write by constant index.
- * GCC has per-register variants (sfpreadlreg0-7). Our LLVM intrinsics
- * take a constant index and emit SFPMOV from/to the physical L-register. */
-#define __builtin_rvtt_sfpreadlreg(idx) \
-    _XTT(__builtin_riscv_tt_sfpreadlreg(idx))
+ * For L8-L15 (constant/config registers): use LLVM intrinsics.
+ * For L0-L7 (allocatable): use inline asm so the operation is opaque to
+ * LLVM's register allocator and machine verifier. The kernel init code
+ * sets up LUT values in L0-L6 via hardware mechanisms (SFPLUT, SFPCONFIG)
+ * and the calculation function saves/restores them around computation. */
+static inline __attribute__((always_inline)) __xtt_vector _sfpu_readlreg(unsigned idx) {
+    __xtt_vector r;
+    switch (idx) {
+    case 0: __asm__ volatile("sfpmov %0, l0, 0, 0" : "=l"(r) :: "memory"); return r;
+    case 1: __asm__ volatile("sfpmov %0, l1, 0, 0" : "=l"(r) :: "memory"); return r;
+    case 2: __asm__ volatile("sfpmov %0, l2, 0, 0" : "=l"(r) :: "memory"); return r;
+    case 3: __asm__ volatile("sfpmov %0, l3, 0, 0" : "=l"(r) :: "memory"); return r;
+    case 4: __asm__ volatile("sfpmov %0, l4, 0, 0" : "=l"(r) :: "memory"); return r;
+    case 5: __asm__ volatile("sfpmov %0, l5, 0, 0" : "=l"(r) :: "memory"); return r;
+    case 6: __asm__ volatile("sfpmov %0, l6, 0, 0" : "=l"(r) :: "memory"); return r;
+    case 7: __asm__ volatile("sfpmov %0, l7, 0, 0" : "=l"(r) :: "memory"); return r;
+    default: return static_cast<__xtt_vector>(__builtin_riscv_tt_sfpreadlreg(idx));
+    }
+}
+static inline __attribute__((always_inline)) void _sfpu_writelreg(__xtt_vector val, unsigned idx) {
+    switch (idx) {
+    case 0: __asm__ volatile("sfpmov l0, %0, 0, 0" :: "l"(val) : "memory"); return;
+    case 1: __asm__ volatile("sfpmov l1, %0, 0, 0" :: "l"(val) : "memory"); return;
+    case 2: __asm__ volatile("sfpmov l2, %0, 0, 0" :: "l"(val) : "memory"); return;
+    case 3: __asm__ volatile("sfpmov l3, %0, 0, 0" :: "l"(val) : "memory"); return;
+    case 4: __asm__ volatile("sfpmov l4, %0, 0, 0" :: "l"(val) : "memory"); return;
+    case 5: __asm__ volatile("sfpmov l5, %0, 0, 0" :: "l"(val) : "memory"); return;
+    case 6: __asm__ volatile("sfpmov l6, %0, 0, 0" :: "l"(val) : "memory"); return;
+    case 7: __asm__ volatile("sfpmov l7, %0, 0, 0" :: "l"(val) : "memory"); return;
+    default: __builtin_riscv_tt_sfpwritelreg((unsigned int)(val), idx); return;
+    }
+}
+#define __builtin_rvtt_sfpreadlreg(idx) _sfpu_readlreg(idx)
 #define __builtin_rvtt_sfpwritelreg(val, idx) \
-    __builtin_riscv_tt_sfpwritelreg((unsigned int)(val), idx)
+    _sfpu_writelreg((__xtt_vector)(unsigned int)(val), idx)
 
 /* synth_opcode: emit a raw Tensix opcode. Not an SFPU instruction.
  * MUST use .ttinsn for ROL2 encoding (same reason as ttincrwc). */
