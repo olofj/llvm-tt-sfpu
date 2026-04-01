@@ -109,8 +109,9 @@ namespace sfpi {
     static_cast<__xtt_vector>(__builtin_riscv_tt_sfpreadlreg(mod))
 #define __builtin_rvtt_sfpxicmpv(a, b, mod) \
     (__builtin_riscv_tt_sfpsetcc(a, 0, mod), 0)
+/* sfpshft_v: dest is read-modify-write (value), lreg_c is shift amount */
 #define __builtin_rvtt_sfpshft_v(dst, src, mod) \
-    static_cast<__xtt_vector>(__builtin_riscv_tt_sfpshft(dst, 0, mod))
+    static_cast<__xtt_vector>(__builtin_riscv_tt_sfpshft_lv((unsigned int)(dst), (unsigned int)(src), 0, mod))
 
 } // namespace sfpi
 
