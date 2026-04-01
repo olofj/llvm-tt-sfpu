@@ -192,19 +192,21 @@ namespace ckernel { static volatile unsigned int instrn_buffer[1] = {0}; }
 #define __builtin_rvtt_bh_sfpaddi(buf, src, imm16, x1, x2, mod) \
     _XTT(__builtin_riscv_tt_sfpaddi(src, imm16, mod))
 
-/* Unary with immediate BH */
+/* Unary with immediate BH — use _lv to tie output to input.
+ * SFPSETEXP modifies dest in-place; tying ensures the register allocator
+ * keeps the original value for non-predicated lanes in v_if blocks. */
 #define __builtin_rvtt_bh_sfpsetexp_i(buf, imm12, x1, x2, src) \
-    _XTT(__builtin_riscv_tt_sfpsetexp(src, imm12, 0))
+    _XTT(__builtin_riscv_tt_sfpsetexp_lv((unsigned int)(src), (unsigned int)(src), imm12, 0))
 #define __builtin_rvtt_bh_sfpsetexp_v(dst, src) \
-    _XTT(__builtin_riscv_tt_sfpsetexp(src, 0, 0))
+    _XTT(__builtin_riscv_tt_sfpsetexp_lv((unsigned int)(dst), (unsigned int)(src), 0, 0))
 #define __builtin_rvtt_bh_sfpsetman_i(buf, imm12, x1, x2, src, mod) \
     _XTT(__builtin_riscv_tt_sfpsetman(src, imm12, mod))
 #define __builtin_rvtt_bh_sfpsetman_v(dst, src) \
-    _XTT(__builtin_riscv_tt_sfpsetman(src, 0, 0))
+    _XTT(__builtin_riscv_tt_sfpsetman_lv((unsigned int)(dst), (unsigned int)(src), 0, 0))
 #define __builtin_rvtt_bh_sfpsetsgn_i(buf, imm12, x1, x2, src) \
     _XTT(__builtin_riscv_tt_sfpsetsgn(src, imm12, 0))
 #define __builtin_rvtt_bh_sfpsetsgn_v(dst, src) \
-    _XTT(__builtin_riscv_tt_sfpsetsgn(src, 0, 0))
+    _XTT(__builtin_riscv_tt_sfpsetsgn_lv((unsigned int)(dst), (unsigned int)(src), 0, 0))
 #define __builtin_rvtt_bh_sfpdivp2(buf, imm12, x1, x2, src, mod) \
     _XTT(__builtin_riscv_tt_sfpdivp2(src, imm12, mod))
 #define __builtin_rvtt_bh_sfpdivp2_lv(buf, live, imm12, x1, x2, src, mod) \
@@ -281,13 +283,13 @@ namespace ckernel { static volatile unsigned int instrn_buffer[1] = {0}; }
 #define __builtin_rvtt_wh_sfpadd(a, b, mod) _XTT(__builtin_riscv_tt_sfpadd(10, a, b, mod))
 
 #define __builtin_rvtt_wh_sfpsetexp_i(buf, imm12, x1, x2, src) \
-    _XTT(__builtin_riscv_tt_sfpsetexp(src, imm12, 0))
+    _XTT(__builtin_riscv_tt_sfpsetexp_lv((unsigned int)(src), (unsigned int)(src), imm12, 0))
 #define __builtin_rvtt_wh_sfpsetexp_v(dst, src) \
-    _XTT(__builtin_riscv_tt_sfpsetexp(src, 0, 0))
+    _XTT(__builtin_riscv_tt_sfpsetexp_lv((unsigned int)(dst), (unsigned int)(src), 0, 0))
 #define __builtin_rvtt_wh_sfpsetman_i(buf, imm12, x1, x2, src, mod) \
     _XTT(__builtin_riscv_tt_sfpsetman(src, imm12, mod))
 #define __builtin_rvtt_wh_sfpsetman_v(dst, src) \
-    _XTT(__builtin_riscv_tt_sfpsetman(src, 0, 0))
+    _XTT(__builtin_riscv_tt_sfpsetman_lv((unsigned int)(dst), (unsigned int)(src), 0, 0))
 #define __builtin_rvtt_wh_sfpdivp2(buf, imm12, x1, x2, src, mod) \
     _XTT(__builtin_riscv_tt_sfpdivp2(src, imm12, mod))
 #define __builtin_rvtt_wh_sfpxiadd_i(buf, src, imm12, x1, x2, mod) \
@@ -409,7 +411,7 @@ __builtin_rvtt_ttreplay(unsigned start, unsigned len,
 #define __builtin_rvtt_wh_sfpsetsgn_i(buf, imm12, x1, x2, src) \
     _XTT(__builtin_riscv_tt_sfpsetsgn(src, imm12, 0))
 #define __builtin_rvtt_wh_sfpsetsgn_v(dst, src) \
-    _XTT(__builtin_riscv_tt_sfpsetsgn(src, 0, 0))
+    _XTT(__builtin_riscv_tt_sfpsetsgn_lv((unsigned int)(dst), (unsigned int)(src), 0, 0))
 #define __builtin_rvtt_wh_sfpstochrnd_i(buf, mode, x1, x2, x3, src, mod) \
     _XTT(__builtin_riscv_tt_sfpstochrnd(mode, 0, src, 0, mod))
 #define __builtin_rvtt_wh_sfpstochrnd_v(mode, src_b, src_c, mod) \
