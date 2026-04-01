@@ -258,7 +258,9 @@ namespace ckernel { static volatile unsigned int instrn_buffer[1] = {0}; }
     _XTT(__builtin_riscv_tt_sfpstochrnd(mode, 0, src_b, src_c, mod))
 
 /* Swap / transpose */
-#define __builtin_rvtt_sfpswap(a, b, mod) _XTT(__builtin_riscv_tt_sfpswap(a, 0, mod))
+/* sfpswap: both a (dest) and b (src_c) are read-write swap operands.
+ * Pass both to the intrinsic so the ISel can place them correctly. */
+#define __builtin_rvtt_sfpswap(a, b, mod) _XTT(__builtin_riscv_tt_sfpswap((unsigned int)(a), (unsigned int)(b), mod))
 #define __builtin_rvtt_sfptransp(a, b, c, d) _XTT(__builtin_riscv_tt_sfptransp(a, 0, 0))
 
 /* SFPSHFT2 */
