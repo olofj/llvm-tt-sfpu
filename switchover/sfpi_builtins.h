@@ -81,8 +81,10 @@ namespace sfpi {
     static_cast<__xtt_vector>(__builtin_riscv_tt_sfpsetsgn(src, imm, mod1))
 #define __builtin_rvtt_sfpdivp2(src, imm, mod) \
     static_cast<__xtt_vector>(__builtin_riscv_tt_sfpdivp2(src, imm, mod))
-#define __builtin_rvtt_sfpstochrnd_i(src, imm, mode, mod) \
-    static_cast<__xtt_vector>(__builtin_riscv_tt_sfpstochrnd(mode, imm, src, src, mod))
+/* Caller passes (src, imm, mod1=format, rnd_mode=rounding).
+ * The intrinsic takes (rnd_mode, imm5, src_b, src_c, mod1). */
+#define __builtin_rvtt_sfpstochrnd_i(src, imm, mod1, rnd_mode) \
+    static_cast<__xtt_vector>(__builtin_riscv_tt_sfpstochrnd(rnd_mode, imm, src, src, mod1))
 
 /* --- Set exp/man/sgn (vector forms) --- */
 #define __builtin_rvtt_sfpsetexp_v(v, exp, mod) \
